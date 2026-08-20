@@ -15,6 +15,11 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
 
+      # Порт, который слушает контейнер. Render проверяет именно его,
+      # и без совпадения деплой висит в 502 «no open ports detected».
+      - key: PORT
+        value: "8080"
+
       # Строка подключения к Neon. Значение вводится в дашборде при создании блюпринта
       # и в репозиторий не попадает.
       - key: ConnectionStrings__Default
