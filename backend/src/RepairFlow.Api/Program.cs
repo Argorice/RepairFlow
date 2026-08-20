@@ -44,7 +44,23 @@ builder.Services.Configure<FormOptions>(options =>
 
 var app = builder.Build();
 
-await app.InitializeDatabaseAsync();
+// Падение на подъёме базы не должно ронять процесс: иначе площадка отдаёт наружу голый 502,
+// по которому непонятно ничего. Лучше подняться, ответить на /health и написать причину в лог.
+var databaseReady = true;
+
+try
+{
+    await app.InitializeDatabaseAsync();
+}
+catch (Exception exception)
+{
+    databaseReady = false;
+
+    app.Services
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("Startup")
+        .LogCritical(exception, "Не удалось подготовить базу данных. Приложение поднимется, но работать не сможет.");
+}
 
 // Обработчик исключений стоит первым: всё, что упадёт ниже, превратится в ProblemDetails.
 app.UseAppExceptionHandling();
@@ -60,7 +76,14 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<OrdersHub>(OrdersHub.Path);
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", utc = DateTime.UtcNow }))
+app.MapGet(
+        "/health",
+        () => Results.Ok(new
+        {
+            status = "ok",
+            database = databaseReady ? "ok" : "unavailable",
+            utc = DateTime.UtcNow
+        }))
     .AllowAnonymous()
     .ExcludeFromDescription();
 
