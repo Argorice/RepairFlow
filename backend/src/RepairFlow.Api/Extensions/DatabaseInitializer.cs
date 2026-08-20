@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 using RepairFlow.Api.Configuration;
 using RepairFlow.Api.Data;
@@ -29,16 +31,42 @@ public static class DatabaseInitializer
         }
         else
         {
-            // Запасной путь для свежего клона, в котором миграции ещё не сгенерированы:
-            // схема создаётся напрямую, чтобы демо поднималось одной командой.
-            await db.Database.EnsureCreatedAsync(ct);
-            logger.LogWarning("Миграции не найдены — схема создана через EnsureCreated.");
+            await CreateSchemaWithoutMigrationsAsync(db, logger, ct);
         }
 
         if (demo.SeedOnStartup)
         {
             await DbSeeder.SeedAsync(db, demo, logger, ct);
         }
+    }
+
+    /// <summary>
+    /// Запасной путь для клона, в котором миграции ещё не сгенерированы.
+    ///
+    /// Здесь нельзя использовать EnsureCreated: он создаёт схему только заодно с созданием базы,
+    /// а у облачного провайдера база уже существует — метод молча возвращает false и не создаёт
+    /// ни одной таблицы. Наружу это вылезает первым же запросом: relation "users" does not exist.
+    /// Поэтому таблицы создаются напрямую, если их ещё нет.
+    ///
+    /// Когда миграции появятся, этот путь перестанет выполняться. Но базу, поднятую этим способом,
+    /// миграции уже не примут — истории в __migrations нет. Перед первым «dotnet ef database update»
+    /// схему нужно очистить (в Neon проще всего сбросить ветку).
+    /// </summary>
+    private static async Task CreateSchemaWithoutMigrationsAsync(
+        AppDbContext db,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        var creator = db.Database.GetService<IRelationalDatabaseCreator>();
+
+        if (await creator.HasTablesAsync(ct))
+        {
+            logger.LogInformation("Схема уже существует — создание пропущено.");
+            return;
+        }
+
+        await creator.CreateTablesAsync(ct);
+        logger.LogWarning("Миграции не найдены — схема создана напрямую из модели.");
     }
 
     /// <summary>В docker-compose API стартует раньше, чем Postgres успевает принять соединения.</summary>
