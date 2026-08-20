@@ -16,7 +16,11 @@ export function getAccessToken(): string | null {
   return accessToken
 }
 
-export const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5080'
+/**
+ * Хвостовой слэш в переменной окружения — классика: адрес превращается в «…com//health»,
+ * и запрос уходит не туда. Срезаем его один раз здесь, чтобы не думать об этом на каждом вызове.
+ */
+export const apiBaseUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:5080').replace(/\/+$/, '')
 
 /** Ошибка API с разобранным ProblemDetails: сообщение уже готово для показа человеку. */
 export class ApiError extends Error {

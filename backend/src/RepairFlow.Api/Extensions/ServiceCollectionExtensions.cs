@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RepairFlow.Api.Authorization;
 using RepairFlow.Api.Caching;
+using RepairFlow.Api.Common;
 using RepairFlow.Api.Configuration;
 using RepairFlow.Api.Data;
 using RepairFlow.Api.OpenApi;
@@ -28,9 +29,8 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddAppPersistence(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-                               ?? throw new InvalidOperationException(
-                                   "Не задана строка подключения ConnectionStrings__Default.");
+        // Принимаем и формат ключей Npgsql, и URI вида postgresql://… — второй отдают облачные базы.
+        var connectionString = PostgresConnectionString.Normalize(configuration.GetConnectionString("Default"));
 
         services.AddDbContext<AppDbContext>(options =>
         {
