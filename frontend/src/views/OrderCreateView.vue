@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { attachmentsApi, ordersApi } from '@/api/endpoints'
@@ -25,6 +25,57 @@ const loading = ref(false)
 const error = ref<ApiError | null>(null)
 
 const MAX_SIZE = 10 * 1024 * 1024
+const MIN_DESCRIPTION = 10
+
+/**
+ * Те же правила, что и на сервере, но проверенные до отправки. Сервер остаётся источником
+ * истины — здесь мы лишь избавляем человека от круга «отправил → подождал → получил отказ».
+ */
+const localErrors = ref<Record<string, string>>({})
+const submitted = ref(false)
+
+function validate(): boolean {
+  const found: Record<string, string> = {}
+
+  if (!form.value.deviceType.trim()) {
+    found.deviceType = 'Укажите тип устройства.'
+  }
+
+  if (!form.value.brand.trim()) {
+    found.brand = 'Укажите производителя.'
+  }
+
+  if (!form.value.model.trim()) {
+    found.model = 'Укажите модель.'
+  }
+
+  const description = form.value.problemDescription.trim()
+
+  if (!description) {
+    found.problemDescription = 'Опишите, что случилось.'
+  } else if (description.length < MIN_DESCRIPTION) {
+    found.problemDescription = `Слишком коротко — нужно хотя бы ${MIN_DESCRIPTION} символов.`
+  }
+
+  localErrors.value = found
+  return Object.keys(found).length === 0
+}
+
+/** Ошибка поля: сначала своя, потом пришедшая с сервера. */
+function errorFor(field: keyof typeof form.value): string | undefined {
+  return localErrors.value[field] ?? error.value?.fieldError(field)
+}
+
+// После первой неудачной отправки подсказки обновляются на лету, а не ждут следующего клика.
+watch(
+  form,
+  () => {
+    if (submitted.value) {
+      validate()
+    }
+  },
+  { deep: true },
+)
 
 function onFilesPicked(event: Event): void {
   const input = event.target as HTMLInputElement
@@ -44,6 +95,13 @@ function removeFile(index: number): void {
 }
 
 async function submit(): Promise<void> {
+  submitted.value = true
+
+  if (!validate()) {
+    toasts.error('Проверьте подсвеченные поля.')
+    return
+  }
+
   loading.value = true
   error.value = null
 
@@ -92,27 +150,27 @@ async function submit(): Promise<void> {
           label="Тип устройства"
           placeholder="Ноутбук, смартфон, телевизор…"
           required
-          :error="error?.fieldError('deviceType')"
+          :error="errorFor('deviceType')"
         />
         <AppInput
           v-model="form.brand"
           label="Производитель"
           placeholder="Lenovo"
           required
-          :error="error?.fieldError('brand')"
+          :error="errorFor('brand')"
         />
         <AppInput
           v-model="form.model"
           label="Модель"
           placeholder="ThinkPad T14"
           required
-          :error="error?.fieldError('model')"
+          :error="errorFor('model')"
         />
         <AppInput
           v-model="form.serialNumber"
           label="Серийный номер"
           hint="Необязательно"
-          :error="error?.fieldError('serialNumber')"
+          :error="errorFor('serialNumber')"
         />
       </div>
 
@@ -122,7 +180,8 @@ async function submit(): Promise<void> {
         placeholder="После падения не включается, при зарядке греется левый угол…"
         :rows="5"
         required
-        :error="error?.fieldError('problemDescription')"
+        hint="Хотя бы одно предложение — чем подробнее, тем быстрее диагностика"
+        :error="errorFor('problemDescription')"
       />
 
       <div>

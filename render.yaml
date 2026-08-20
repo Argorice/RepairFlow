@@ -28,9 +28,12 @@ services:
       - key: Jwt__Key
         generateValue: true
 
-      # Фронт и API на разных доменах, значит кука с refresh-токеном кросс-сайтовая.
+      # Браузер видит API на домене фронтенда — запросы разворачивает rewrite на Vercel,
+      # так что кука с refresh-токеном first-party и ей хватает SameSite=Lax.
+      # SameSite=None понадобился бы только при прямом обращении к этому домену,
+      # а такую куку современные браузеры всё чаще просто выбрасывают.
       - key: Jwt__CrossSiteCookies
-        value: "true"
+        value: "false"
 
       # Адрес фронтенда на Vercel — вводится в дашборде после первого деплоя фронта.
       - key: Cors__Origins__0

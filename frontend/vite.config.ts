@@ -12,5 +12,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // В разработке повторяем то же, что в продакшне делает Vercel: API живёт на том же
+    // origin, что и приложение. Тогда кука с refresh-токеном везде остаётся first-party.
+    proxy: {
+      '/api': { target: 'http://localhost:5080', changeOrigin: true },
+      '/hubs': { target: 'http://localhost:5080', changeOrigin: true, ws: true },
+      '/health': { target: 'http://localhost:5080', changeOrigin: true },
+    },
   },
 })

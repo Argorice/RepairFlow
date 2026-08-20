@@ -18,6 +18,13 @@ RUN dotnet publish src/RepairFlow.Api/RepairFlow.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+# Npgsql при старте пробует загрузить GSSAPI (Kerberos-аутентификация). В slim-образе библиотеки нет,
+# и в лог падает «Cannot load library libgssapi_krb5.so.2». На работу это не влияет — подключение
+# идёт по паролю, — но чистый лог стоит двух мегабайт.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
+
 # 10000 — порт, который Render ждёт по умолчанию, если переменная PORT не задана.
 # Берём его значением по умолчанию, чтобы образ работал и с блюпринтом, и на вручную
 # созданном сервисе, и на любой площадке, которая передаёт свой PORT.

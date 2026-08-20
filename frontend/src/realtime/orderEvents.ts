@@ -1,7 +1,7 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from '@microsoft/signalr'
 import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack'
 import { onBeforeUnmount, ref, watch, type Ref } from 'vue'
-import { apiBaseUrl, getAccessToken, refreshSession } from '@/api/client'
+import { getAccessToken, realtimeBaseUrl, refreshSession } from '@/api/client'
 import type { OrderEventDto } from '@/api/types'
 
 const EVENT_METHOD = 'orderEvent'
@@ -35,7 +35,7 @@ function normalize(raw: RawOrderEvent & Partial<OrderEventDto>): OrderEventDto {
 
 function createConnection(): HubConnection {
   return new HubConnectionBuilder()
-    .withUrl(`${apiBaseUrl}/hubs/orders`, {
+    .withUrl(`${realtimeBaseUrl}/hubs/orders`, {
       // WebSocket не умеет слать заголовок Authorization — токен уезжает query-параметром.
       accessTokenFactory: async () => getAccessToken() ?? (await refreshSession()) ?? '',
     })
