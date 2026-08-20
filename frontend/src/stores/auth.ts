@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { refreshSession, setAccessToken } from '@/api/client'
+import { refreshSession, restoreTimeoutMs, setAccessToken } from '@/api/client'
 import { authApi } from '@/api/endpoints'
 import { UserRole, type UserDto } from '@/api/types'
 
@@ -25,7 +25,7 @@ export const useAuthStore = defineStore('auth', () => {
     restoring.value = true
 
     try {
-      const token = await refreshSession()
+      const token = await refreshSession(restoreTimeoutMs)
       user.value = token ? await authApi.me() : null
     } catch {
       user.value = null

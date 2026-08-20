@@ -22,6 +22,13 @@ export function getAccessToken(): string | null {
  */
 export const apiBaseUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:5080').replace(/\/+$/, '')
 
+/**
+ * Восстановление сессии при загрузке страницы — особый случай: ждать минуту, пока проснётся
+ * уснувший сервер, глядя на заставку, нельзя. Лучше быстро сдаться и показать форму входа —
+ * сервер тем временем продолжит просыпаться.
+ */
+export const restoreTimeoutMs = 8_000
+
 /** Ошибка API с разобранным ProblemDetails: сообщение уже готово для показа человеку. */
 export class ApiError extends Error {
   readonly status: number
@@ -41,10 +48,14 @@ export class ApiError extends Error {
   }
 }
 
+/** Обычные запросы: с запасом на холодный старт бесплатного хостинга. */
+const REQUEST_TIMEOUT_MS = 60_000
+
 export const http = axios.create({
   baseURL: apiBaseUrl,
   // Нужно, чтобы браузер отправлял httpOnly-куку с refresh-токеном.
   withCredentials: true,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: { Accept: 'application/json' },
 })
 
@@ -67,13 +78,13 @@ export function setSessionExpiredHandler(handler: () => void): void {
   onSessionExpired = handler
 }
 
-export async function refreshSession(): Promise<string | null> {
+export async function refreshSession(timeoutMs: number = REQUEST_TIMEOUT_MS): Promise<string | null> {
   refreshPromise ??= (async () => {
     try {
       const { data } = await axios.post<AuthResponse>(
         '/api/auth/refresh',
         {},
-        { baseURL: apiBaseUrl, withCredentials: true },
+        { baseURL: apiBaseUrl, withCredentials: true, timeout: timeoutMs },
       )
 
       setAccessToken(data.accessToken)
