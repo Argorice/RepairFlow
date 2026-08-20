@@ -60,7 +60,9 @@ Host=<endpoint>-pooler.<region>.aws.neon.tech;Database=neondb;Username=neondb_ow
 
 Адрес будет вида `https://repairflow-api.onrender.com`. Проверьте:
 
-- `https://<адрес>/health` → `{"status":"ok"}`
+- `https://<адрес>/health` → `{"status":"ok","utc":"…"}` — это проверка живости процесса,
+  она намеренно не ходит в базу: иначе уснувший Neon валил бы health-check и Render крутил бы
+  бесконечные перезапуски
 - `https://<адрес>/scalar/v1` → документация API
 
 ---
@@ -94,6 +96,19 @@ Host=<endpoint>-pooler.<region>.aws.neon.tech;Database=neondb;Username=neondb_ow
 Заголовки CORS к 502 отношения не имеют: упавшее приложение не отдаёт вообще никаких заголовков,
 и браузер сообщает об этом как о нарушении CORS. Пока `/health` не отвечает `{"status":"ok"}`,
 настройки CORS менять бессмысленно.
+
+Третья причина встречается только в контейнерах и выглядит пугающе:
+
+```
+System.IO.IOException: The configured user limit (128) on the number of inotify instances
+has been reached … at WebApplication.CreateBuilder(String[] args)
+```
+
+ASP.NET по умолчанию следит за `appsettings.json` через inotify, чтобы перечитывать конфигурацию
+на лету, а на плотно упакованном хосте лимит inotify-инстансов бывает уже выбран соседями.
+Приложение падает ещё до первой строки нашего кода. В образе это выключено двумя переменными
+(`DOTNET_hostBuilder__reloadConfigOnChange` и `DOTNET_USE_POLLING_FILE_WATCHER`): в контейнере
+конфигурация неизменна от старта до старта, следить за ней незачем.
 
 ## Шаг 4. Связать половины обратно
 
