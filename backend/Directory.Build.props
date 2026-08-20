@@ -1,0 +1,22 @@
+<Project>
+
+  <PropertyGroup>
+    <!--
+      Аудит зависимостей включён явно и настроен строже значений по умолчанию:
+      проверяются не только прямые ссылки, но и весь транзитивный граф, и не только
+      находки высокой критичности. Сверка идёт с базой GitHub Advisories при каждом restore.
+    -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+
+    <!--
+      В CI находки аудита имеет смысл превращать в ошибку сборки, чтобы уязвимая
+      зависимость не уехала в прод незамеченной:
+      <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsAsErrors>
+      Локально оставлены предупреждениями, чтобы новая запись в базе advisories
+      не блокировала работу над задачей.
+    -->
+  </PropertyGroup>
+
+</Project>

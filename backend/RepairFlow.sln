@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C45E3D6F-9E9A-44F4-AC43-8E40F5D9BFCA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RepairFlow.Api", "src\RepairFlow.Api\RepairFlow.Api.csproj", "{6C42E2A2-0865-451B-A834-19DB408B4C83}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{97396B6F-6DE9-4E43-8852-0A6A4FF94660}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RepairFlow.Tests", "tests\RepairFlow.Tests\RepairFlow.Tests.csproj", "{07926144-4432-496E-95FB-0634031AB081}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6C42E2A2-0865-451B-A834-19DB408B4C83}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C42E2A2-0865-451B-A834-19DB408B4C83}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C42E2A2-0865-451B-A834-19DB408B4C83}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C42E2A2-0865-451B-A834-19DB408B4C83}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07926144-4432-496E-95FB-0634031AB081}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07926144-4432-496E-95FB-0634031AB081}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07926144-4432-496E-95FB-0634031AB081}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07926144-4432-496E-95FB-0634031AB081}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6C42E2A2-0865-451B-A834-19DB408B4C83} = {C45E3D6F-9E9A-44F4-AC43-8E40F5D9BFCA}
+		{07926144-4432-496E-95FB-0634031AB081} = {97396B6F-6DE9-4E43-8852-0A6A4FF94660}
+	EndGlobalSection
+EndGlobal

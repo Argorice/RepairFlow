@@ -1,0 +1,36 @@
+# Blueprint для Render: подключаете репозиторий один раз, дальше каждый push в main
+# пересобирает и выкатывает API. База живёт отдельно в Neon — бесплатный Postgres
+# у Render истекает через 30 дней, для портфолио это мина замедленного действия.
+services:
+  - type: web
+    name: repairflow-api
+    runtime: docker
+    plan: free
+    # Тот же регион, что и база в Neon: лишний океан между API и Postgres не нужен.
+    region: frankfurt
+    dockerfilePath: ./backend/src/RepairFlow.Api/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+
+      # Строка подключения к Neon. Значение вводится в дашборде при создании блюпринта
+      # и в репозиторий не попадает.
+      - key: ConnectionStrings__Default
+        sync: false
+
+      # Секрет подписи токенов Render сгенерирует сам — его вообще никто не увидит.
+      - key: Jwt__Key
+        generateValue: true
+
+      # Фронт и API на разных доменах, значит кука с refresh-токеном кросс-сайтовая.
+      - key: Jwt__CrossSiteCookies
+        value: "true"
+
+      # Адрес фронтенда на Vercel — вводится в дашборде после первого деплоя фронта.
+      - key: Cors__Origins__0
+        sync: false
+
+      - key: Demo__SeedOnStartup
+        value: "true"
