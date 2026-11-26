@@ -3,14 +3,22 @@
  * Знак RepairFlow: гайка — ремонт, шеврон внутри — движение заявки вперёд по шагам.
  * Нарисован для маленьких размеров: на 16 px вкладки браузера читаются и гайка, и стрелка.
  *
+ * От 40 px появляется фаска — тонкий шестиугольник внутри гайки. Без неё крупный знак
+ * похож на кнопку «далее», с ней узнаётся гайка. На мелких размерах фаска сливается
+ * в грязь, поэтому там знак остаётся плоским.
+ *
  * `turning` — гайка проворачивается рывками, как под ключом с трещоткой. Это вся анимация
  * загрузочного экрана: шестиугольник симметричен на 60°, поэтому цикл бесшовный.
  */
-withDefaults(defineProps<{ size?: number; inverted?: boolean; turning?: boolean }>(), {
+import { computed } from 'vue'
+
+const props = withDefaults(defineProps<{ size?: number; inverted?: boolean; turning?: boolean }>(), {
   size: 32,
   inverted: false,
   turning: false,
 })
+
+const chamfered = computed(() => props.size >= 40)
 </script>
 
 <template>
@@ -28,6 +36,13 @@ withDefaults(defineProps<{ size?: number; inverted?: boolean; turning?: boolean 
         points="23.79,20.5 16,25 8.21,20.5 8.21,11.5 16,7 23.79,11.5"
         class="logo-nut"
         stroke-width="1.6"
+        stroke-linejoin="round"
+      />
+      <polygon
+        v-if="chamfered"
+        points="22.41,19.7 16,23.4 9.59,19.7 9.59,12.3 16,8.6 22.41,12.3"
+        class="logo-chamfer"
+        stroke-width="0.7"
         stroke-linejoin="round"
       />
     </g>
@@ -60,6 +75,12 @@ withDefaults(defineProps<{ size?: number; inverted?: boolean; turning?: boolean 
 .logo-nut {
   fill: var(--logo-ink);
   stroke: var(--logo-ink);
+}
+
+/* Фаска чуть темнее грани: тот же цвет гайки, на треть разбавленный цветом плитки */
+.logo-chamfer {
+  fill: none;
+  stroke: color-mix(in oklab, var(--logo-ink) 70%, var(--logo-tile));
 }
 
 /* Стрелка — «вырез» в гайке: цветом плитки, а не прозрачностью, чтобы не зависеть от фона. */

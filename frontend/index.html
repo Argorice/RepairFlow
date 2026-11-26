@@ -54,8 +54,14 @@
       [data-theme='dark'] .boot {
         background: #0b0d13;
       }
+      .boot .chamfer {
+        stroke: color-mix(in oklab, #fff 70%, #4f46e5);
+      }
       [data-theme='dark'] .boot rect {
         fill: #5b5cf0;
+      }
+      [data-theme='dark'] .boot .chamfer {
+        stroke: color-mix(in oklab, #fff 70%, #5b5cf0);
       }
       [data-theme='dark'] .boot path {
         stroke: #5b5cf0;
@@ -66,12 +72,14 @@
     <!--
       Тот же знак, что и на заставке приложения, но статичный и без единого байта JS:
       пока грузится бандл, на экране уже стоит гайка, и при монтировании ничего не прыгает.
+      Фаска здесь есть, как и у LogoMark от 40 px.
     -->
     <div id="app">
       <div class="boot">
         <svg width="64" height="64" viewBox="0 0 32 32" aria-hidden="true">
           <rect width="32" height="32" rx="9" fill="#4F46E5" />
           <polygon points="23.79,20.5 16,25 8.21,20.5 8.21,11.5 16,7 23.79,11.5" fill="#fff" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" />
+          <polygon class="chamfer" points="22.41,19.7 16,23.4 9.59,19.7 9.59,12.3 16,8.6 22.41,12.3" fill="none" stroke-width="0.7" stroke-linejoin="round" />
           <path d="M14.4 12.2 18.2 16l-3.8 3.8" fill="none" stroke="#4F46E5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </div>
