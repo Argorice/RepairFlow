@@ -7,7 +7,11 @@ using RepairFlow.Api.Domain.Enums;
 namespace RepairFlow.Api.Data;
 
 /// <summary>
-/// Демо-данные. Нужны не для тестов, а для витрины: заказчик открывает демо и сразу видит
+/// Демо-данные — на английском: витрина рассчитана на англоязычного заказчика. Интерфейс
+/// переключается на русский, а содержимое заявок остаётся таким, каким его «написали», — как
+/// в любой настоящей системе, где текст клиента никто не переводит.
+///
+/// Нужны они не для тестов, а для витрины: заказчик открывает демо и сразу видит
 /// заполненный дашборд, историю переходов и сметы, а не пустые таблицы с надписью «нет данных».
 /// </summary>
 public static class DbSeeder
@@ -31,31 +35,31 @@ public static class DbSeeder
     {
         if (await db.Users.AnyAsync(ct))
         {
-            logger.LogInformation("База уже содержит данные — сидер пропущен.");
+            logger.LogInformation("The database already has data — seeding skipped.");
             return;
         }
 
-        logger.LogInformation("Заполняю базу демо-данными…");
+        logger.LogInformation("Seeding demo data…");
 
         var hash = BCrypt.Net.BCrypt.HashPassword(options.Password);
         var random = new Random(20260819);
         var now = DateTime.UtcNow;
 
-        var manager = NewUser(ManagerEmail, "Ирина Соколова", "+7 900 100-10-10", UserRole.Manager, hash, now);
+        var manager = NewUser(ManagerEmail, "Emily Novak", "+1 415 555 0110", UserRole.Manager, hash, now);
 
         var technicians = new[]
         {
-            NewUser(TechnicianEmail, "Павел Кузнецов", "+7 900 200-20-20", UserRole.Technician, hash, now),
-            NewUser("tech2@demo.io", "Алексей Морозов", "+7 900 200-20-21", UserRole.Technician, hash, now),
-            NewUser("tech3@demo.io", "Марат Ильясов", "+7 900 200-20-22", UserRole.Technician, hash, now)
+            NewUser(TechnicianEmail, "Marcus Reed", "+1 415 555 0120", UserRole.Technician, hash, now),
+            NewUser("tech2@demo.io", "Alex Moore", "+1 415 555 0121", UserRole.Technician, hash, now),
+            NewUser("tech3@demo.io", "Sam Patel", "+1 415 555 0122", UserRole.Technician, hash, now)
         };
 
         var clients = new[]
         {
-            NewUser(ClientEmail, "Дмитрий Орлов", "+7 900 300-30-30", UserRole.Client, hash, now),
-            NewUser("client2@demo.io", "Анна Лебедева", "+7 900 300-30-31", UserRole.Client, hash, now),
-            NewUser("client3@demo.io", "Сергей Титов", "+7 900 300-30-32", UserRole.Client, hash, now),
-            NewUser("client4@demo.io", "Ольга Белова", "+7 900 300-30-33", UserRole.Client, hash, now)
+            NewUser(ClientEmail, "Daniel Carter", "+1 415 555 0130", UserRole.Client, hash, now),
+            NewUser("client2@demo.io", "Anna Lee", "+1 415 555 0131", UserRole.Client, hash, now),
+            NewUser("client3@demo.io", "Chris Walker", "+1 415 555 0132", UserRole.Client, hash, now),
+            NewUser("client4@demo.io", "Olivia Brooks", "+1 415 555 0133", UserRole.Client, hash, now)
         };
 
         db.Users.Add(manager);
@@ -111,7 +115,7 @@ public static class DbSeeder
                 ToStatus = OrderStatus.New,
                 ChangedById = client.Id,
                 ChangedBy = client,
-                Comment = "Заявка создана",
+                Comment = null,
                 ChangedAt = createdAt
             });
 
@@ -177,7 +181,7 @@ public static class DbSeeder
                 Order = order,
                 AuthorId = client.Id,
                 Author = client,
-                Text = "Подскажите, пожалуйста, ориентировочные сроки.",
+                Text = "Hi! Roughly how long will the repair take?",
                 IsInternal = false,
                 CreatedAt = createdAt.AddHours(2)
             });
@@ -190,7 +194,7 @@ public static class DbSeeder
                     Order = order,
                     AuthorId = technician.Id,
                     Author = technician,
-                    Text = "Взял в работу, после диагностики сообщу точнее.",
+                    Text = "Picked it up. I’ll know more after diagnostics — usually a day or two.",
                     IsInternal = false,
                     CreatedAt = createdAt.AddHours(5)
                 });
@@ -201,7 +205,7 @@ public static class DbSeeder
                     Order = order,
                     AuthorId = technician.Id,
                     Author = technician,
-                    Text = "Внутренняя заметка: аналогичный дефект был на прошлой неделе, деталь есть на складе.",
+                    Text = "Same defect as last week — the part is in stock.",
                     IsInternal = true,
                     CreatedAt = createdAt.AddHours(6)
                 });
@@ -211,7 +215,7 @@ public static class DbSeeder
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation(
-            "Демо-данные готовы: {Users} пользователей, {Orders} заявок. Пароль всех аккаунтов — {Password}",
+            "Demo data ready: {Users} users, {Orders} requests. Every account uses the password {Password}",
             await db.Users.CountAsync(ct),
             await db.Orders.CountAsync(ct),
             options.Password);
@@ -265,13 +269,13 @@ public static class DbSeeder
 
     private static string CommentFor(OrderStatus status) => status switch
     {
-        OrderStatus.Diagnostics => "Принято в диагностику",
-        OrderStatus.AwaitingEstimateApproval => "Смета сформирована, отправлена клиенту",
-        OrderStatus.InProgress => "Смета подтверждена клиентом",
-        OrderStatus.ReadyForPickup => "Ремонт завершён, аппарат протестирован",
-        OrderStatus.Completed => "Выдано клиенту",
-        OrderStatus.Cancelled => "Заявка отменена клиентом",
-        OrderStatus.ClientRejected => "Клиент отказался от ремонта",
+        OrderStatus.Diagnostics => "Taken in for diagnostics",
+        OrderStatus.AwaitingEstimateApproval => "Estimate ready, sent to the customer",
+        OrderStatus.InProgress => "Estimate approved by the customer",
+        OrderStatus.ReadyForPickup => "Repair finished, device tested",
+        OrderStatus.Completed => "Handed over to the customer",
+        OrderStatus.Cancelled => "Cancelled by the customer",
+        OrderStatus.ClientRejected => "The customer declined the repair",
         _ => string.Empty
     };
 
@@ -284,9 +288,9 @@ public static class DbSeeder
                 OrderId = order.Id,
                 Order = order,
                 Type = OrderItemType.Labor,
-                Name = "Диагностика",
+                Name = "Diagnostics",
                 Quantity = 1,
-                UnitPrice = 1500,
+                UnitPrice = 45,
                 CreatedAt = createdAt
             },
             new()
@@ -296,7 +300,7 @@ public static class DbSeeder
                 Type = OrderItemType.Labor,
                 Name = device.Work,
                 Quantity = Math.Round((decimal)random.Next(10, 40) / 10m, 2),
-                UnitPrice = 2200,
+                UnitPrice = 60,
                 CreatedAt = createdAt
             }
         };
@@ -310,7 +314,7 @@ public static class DbSeeder
                 Type = OrderItemType.Part,
                 Name = device.Part,
                 Quantity = 1,
-                UnitPrice = random.Next(15, 190) * 100,
+                UnitPrice = random.Next(4, 52) * 5,
                 CreatedAt = createdAt
             });
         }
@@ -328,17 +332,17 @@ public static class DbSeeder
 
     private static readonly DeviceTemplate[] Devices =
     {
-        new("Ноутбук", "Lenovo", "ThinkPad T14", "Не включается после попадания воды, есть следы окисления.", "Чистка и восстановление платы", "Клавиатурный шлейф"),
-        new("Смартфон", "Apple", "iPhone 13", "Разбит экран, тачскрин частично не реагирует.", "Замена дисплейного модуля", "Дисплейный модуль"),
-        new("Ноутбук", "ASUS", "ZenBook 14", "Сильно шумит вентилятор, греется и выключается под нагрузкой.", "Чистка системы охлаждения, замена термопасты", "Вентилятор охлаждения"),
-        new("Телевизор", "Samsung", "UE50TU7100", "Изображение есть, звука нет ни через динамики, ни через HDMI.", "Ремонт аудиотракта", "Микросхема усилителя"),
-        new("Смартфон", "Samsung", "Galaxy S21", "Быстро разряжается, за полдня уходит весь заряд.", "Замена аккумулятора", "Аккумулятор"),
-        new("Ноутбук", "HP", "Pavilion 15", "Не заряжается, индикатор питания не горит.", "Ремонт цепи питания", "Разъём питания"),
-        new("Планшет", "Apple", "iPad Air 4", "После падения не работает часть тачскрина.", "Замена стекла", "Тачскрин"),
-        new("Монитор", "LG", "27UP650", "Полосы по экрану при подключении по DisplayPort.", "Диагностика матрицы и шлейфов", null),
-        new("Принтер", "Kyocera", "Ecosys P2040", "Зажёвывает бумагу на каждой второй странице.", "Замена узла подачи", "Ролик подачи бумаги"),
-        new("Смартфон", "Xiaomi", "Redmi Note 12", "Не слышно собеседника при разговоре.", "Замена разговорного динамика", "Динамик"),
-        new("Ноутбук", "Acer", "Aspire 5", "Не работает часть клавиш на клавиатуре.", "Замена клавиатуры", "Клавиатура"),
-        new("Игровая консоль", "Sony", "PlayStation 5", "Перегревается и уходит в перезагрузку в играх.", "Обслуживание системы охлаждения", "Термопрокладки")
+        new("Laptop", "Lenovo", "ThinkPad T14", "Won’t turn on after a coffee spill; there are signs of corrosion on the board.", "Board cleaning and recovery", "Keyboard ribbon cable"),
+        new("Phone", "Apple", "iPhone 13", "Cracked screen; the touchscreen doesn’t respond in the lower third.", "Display module replacement", "Display module"),
+        new("Laptop", "ASUS", "ZenBook 14", "The fan is very loud; it overheats and shuts down under load.", "Cooling system service, new thermal paste", "Cooling fan"),
+        new("TV", "Samsung", "UE50TU7100", "Picture is fine, but there’s no sound from the speakers or over HDMI.", "Audio path repair", "Amplifier chip"),
+        new("Phone", "Samsung", "Galaxy S21", "Battery drains completely in half a day.", "Battery replacement", "Battery"),
+        new("Laptop", "HP", "Pavilion 15", "Won’t charge; the power LED stays off.", "Power circuit repair", "Power jack"),
+        new("Tablet", "Apple", "iPad Air 4", "Part of the touchscreen stopped working after a drop.", "Glass replacement", "Touch panel"),
+        new("Monitor", "LG", "27UP650", "Stripes across the screen when connected over DisplayPort.", "Panel and ribbon diagnostics", null),
+        new("Printer", "Kyocera", "Ecosys P2040", "Jams paper on every other page.", "Feed assembly replacement", "Paper feed roller"),
+        new("Phone", "Xiaomi", "Redmi Note 12", "Can’t hear the other person during calls.", "Earpiece speaker replacement", "Earpiece speaker"),
+        new("Laptop", "Acer", "Aspire 5", "Several keys on the keyboard don’t work.", "Keyboard replacement", "Keyboard"),
+        new("Game console", "Sony", "PlayStation 5", "Overheats and reboots during games.", "Cooling system service", "Thermal pads")
     };
 }
