@@ -36,8 +36,8 @@ secrets.json
 storage/
 backend/src/RepairFlow.Api/storage/
 
-## Локальные вспомогательные скрипты — инструменты, а не часть проекта
-/scripts/git-history.ps1
+## Локальная папка: скрипты и заметки, которые не публикуются
+/local/
 
 ## OS
 .DS_Store

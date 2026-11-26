@@ -23,12 +23,14 @@ demo accounts: customer, technician and manager (`client@demo.io` / `master@demo
 - Customer and technician talk inside the request; internal notes stay invisible to the customer.
 - Every status change is recorded: who moved it, when, and why.
 - List filters live in the URL, so a filtered view can simply be sent to a colleague.
+- On a phone it behaves like an app: bottom tab bar, bottom sheets you can swipe away, a sticky
+  action bar under your thumb. Light and dark themes, English and Russian.
 
 ## Stack
 
 **Backend:** ASP.NET Core 10 · EF Core 10 · PostgreSQL 18 · JWT with refresh tokens · SignalR ·
 MessagePack · FluentValidation · OpenAPI + Scalar
-**Frontend:** Vue 3 + TypeScript · Pinia · Vue Router · Tailwind CSS 4 · Vite
+**Frontend:** Vue 3 + TypeScript · Pinia · Vue Router · Tailwind CSS 4 · Vite · Lucide icons
 **Infrastructure:** Docker Compose · xUnit v3 · GitHub Actions · Neon · Render · Vercel
 
 ## Architecture
@@ -96,7 +98,7 @@ npm run dev          # http://localhost:5173
 ### Tests
 
 ```bash
-dotnet test backend/RepairFlow.sln   # domain logic and serialization
+dotnet test --solution backend/RepairFlow.sln   # domain logic and serialization
 cd frontend && npm run build          # frontend types are checked by the build
 ```
 
@@ -138,6 +140,24 @@ so two concurrent submissions can never collide.
 
 **Money is computed apart from everything else.** Estimate maths lives in a pure function covered by
 tests: each line is rounded, not the total — the way a paper invoice works.
+
+**Two languages, checked by the compiler.** The UI ships in English and Russian through a ~100-line
+typed i18n module instead of a library: translation keys are dot-paths derived from the English
+dictionary, so a typo in a key or a phrase missing from `ru.ts` fails the build. Plurals go through
+`Intl.PluralRules` — Russian needs three forms (1 заявка, 3 заявки, 5 заявок), English two. The API
+answers in the same language: the client sends `Accept-Language`, and validation errors and rejection
+reasons come back already translated. Status labels are built on the client from enums, so switching
+language is instant and needs no refetch.
+
+**Themes as tokens, not as `dark:` everywhere.** Components ask for meaning — `bg-surface`,
+`text-ink-2`, `ring-warn-line` — and the theme swaps the variables behind them on `<html data-theme>`.
+A new screen can't forget dark mode because there's nothing to forget. Muted text stays at 4.5:1 in
+both themes, and the two chart series were run through a colour-vision validator for each theme
+separately rather than inverted.
+
+**App-like on a phone.** Large titles that collapse into the top bar as you scroll, screens that slide
+in when you go deeper and back out when you return, a request list kept alive so “back” lands exactly
+where you left it, 16px inputs so iOS doesn't zoom, safe-area insets for notched screens.
 
 **Dependencies are audited.** `NuGetAudit` runs in `all` mode with a `low` threshold, so restore checks
 the whole transitive graph against the GitHub Advisory Database.
