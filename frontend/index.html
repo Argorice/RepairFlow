@@ -39,9 +39,43 @@
         }
       })()
     </script>
+    <style>
+      .boot {
+        display: flex;
+        min-height: 100dvh;
+        align-items: center;
+        justify-content: center;
+        background: #f4f5f9;
+      }
+      .boot svg {
+        border-radius: 18px;
+        box-shadow: 0 12px 32px rgb(15 23 42 / 0.16);
+      }
+      [data-theme='dark'] .boot {
+        background: #0b0d13;
+      }
+      [data-theme='dark'] .boot rect {
+        fill: #5b5cf0;
+      }
+      [data-theme='dark'] .boot path {
+        stroke: #5b5cf0;
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <!--
+      Тот же знак, что и на заставке приложения, но статичный и без единого байта JS:
+      пока грузится бандл, на экране уже стоит гайка, и при монтировании ничего не прыгает.
+    -->
+    <div id="app">
+      <div class="boot">
+        <svg width="64" height="64" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="9" fill="#4F46E5" />
+          <polygon points="23.79,20.5 16,25 8.21,20.5 8.21,11.5 16,7 23.79,11.5" fill="#fff" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" />
+          <path d="M14.4 12.2 18.2 16l-3.8 3.8" fill="none" stroke="#4F46E5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppShell from '@/components/layout/AppShell.vue'
-import BrandMark from '@/components/layout/BrandMark.vue'
+import LogoMark from '@/components/layout/LogoMark.vue'
 import AppToasts from '@/components/ui/AppToasts.vue'
 import { locale, t } from '@/i18n'
 import { pageTransition, updateDocumentTitle } from '@/router'
@@ -31,14 +31,23 @@ watch(locale, updateDocumentTitle)
 </script>
 
 <template>
+  <!--
+    Заставка как у нативного приложения: только знак, без полосок и подписей. Гайка
+    проворачивается, пока поднимается сессия. Текст появляется, лишь когда ждать долго, —
+    и говорит конкретно, чего ждём.
+  -->
   <div v-if="auth.restoring" class="flex min-h-dvh items-center justify-center bg-canvas px-6">
-    <div class="flex max-w-sm animate-fade-in flex-col items-center gap-5 text-center">
-      <BrandMark />
-      <div class="h-1 w-32 overflow-hidden rounded-full bg-surface-3" aria-hidden="true">
-        <div class="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-accent" />
-      </div>
-      <p class="text-sm text-ink-2" role="status">{{ t('app.loading') }}</p>
-      <p v-if="slow" class="text-xs leading-relaxed text-ink-3">{{ t('app.waking') }}</p>
+    <!-- Подпись висит под знаком абсолютно: появляясь, она не сдвигает гайку с места -->
+    <div class="relative">
+      <LogoMark :size="64" turning class="rounded-[18px] shadow-overlay" />
+      <p class="sr-only" role="status">{{ t('app.loading') }}</p>
+      <p
+        v-if="slow"
+        class="absolute top-full left-1/2 mt-6 w-72 -translate-x-1/2 animate-fade-in text-center text-sm leading-relaxed text-ink-3"
+        role="status"
+      >
+        {{ t('app.waking') }}
+      </p>
     </div>
   </div>
 
@@ -52,15 +61,3 @@ watch(locale, updateDocumentTitle)
 
   <AppToasts />
 </template>
-
-<style>
-@keyframes loading {
-  from {
-    transform: translateX(-100%);
-  }
-
-  to {
-    transform: translateX(300%);
-  }
-}
-</style>

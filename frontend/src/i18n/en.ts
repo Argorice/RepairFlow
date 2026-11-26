@@ -7,8 +7,7 @@ import { plural } from './schema'
 export const en = {
   app: {
     loading: 'Loading your workspace…',
-    waking:
-      'The demo server sleeps when idle and takes up to a minute to wake up. The sign-in page will open in a moment.',
+    waking: 'Waking up the demo server — after a quiet spell this takes up to a minute.',
   },
 
   common: {

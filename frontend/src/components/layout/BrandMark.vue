@@ -1,27 +1,22 @@
 <script setup lang="ts">
-import { Wrench } from '@lucide/vue'
+import LogoMark from './LogoMark.vue'
 
-withDefaults(defineProps<{ inverted?: boolean; compact?: boolean }>(), {
+withDefaults(defineProps<{ inverted?: boolean; compact?: boolean; size?: number }>(), {
   inverted: false,
   compact: false,
+  size: 32,
 })
 </script>
 
 <template>
   <span class="inline-flex items-center gap-2.5">
-    <span
-      class="flex size-8 items-center justify-center rounded-[10px]"
-      :class="inverted ? 'bg-white text-brand-600' : 'bg-accent text-on-accent'"
-      aria-hidden="true"
-    >
-      <Wrench class="size-[18px]" stroke-width="2.25" />
-    </span>
+    <LogoMark :size="size" :inverted="inverted" />
     <span
       v-if="!compact"
       class="font-display text-lg font-extrabold tracking-tight"
       :class="inverted ? 'text-white' : 'text-ink'"
     >
-      RepairFlow
+      Repair<span :class="inverted ? 'text-brand-200' : 'text-accent-ink'">Flow</span>
     </span>
   </span>
 </template>
