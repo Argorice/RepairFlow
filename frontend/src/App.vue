@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppShell from '@/components/layout/AppShell.vue'
+import BrandMark from '@/components/layout/BrandMark.vue'
 import AppToasts from '@/components/ui/AppToasts.vue'
+import { locale, t } from '@/i18n'
+import { pageTransition, updateDocumentTitle } from '@/router'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -23,24 +26,41 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => window.clearTimeout(timer))
+
+watch(locale, updateDocumentTitle)
 </script>
 
 <template>
-  <div v-if="auth.restoring" class="flex min-h-screen items-center justify-center bg-slate-50 px-6">
-    <div class="flex max-w-sm flex-col items-center gap-3 text-center">
-      <div class="size-8 animate-spin rounded-full border-2 border-slate-200 border-t-brand-600" />
-      <p class="text-sm text-slate-500">Загружаем рабочее место…</p>
-      <p v-if="slow" class="text-xs text-slate-400">
-        Демо-сервер просыпается после простоя — это занимает до минуты. Сейчас откроется страница входа.
-      </p>
+  <div v-if="auth.restoring" class="flex min-h-dvh items-center justify-center bg-canvas px-6">
+    <div class="flex max-w-sm animate-fade-in flex-col items-center gap-5 text-center">
+      <BrandMark />
+      <div class="h-1 w-32 overflow-hidden rounded-full bg-surface-3" aria-hidden="true">
+        <div class="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-accent" />
+      </div>
+      <p class="text-sm text-ink-2" role="status">{{ t('app.loading') }}</p>
+      <p v-if="slow" class="text-xs leading-relaxed text-ink-3">{{ t('app.waking') }}</p>
     </div>
   </div>
 
-  <AppShell v-else-if="withShell">
-    <RouterView />
-  </AppShell>
+  <AppShell v-else-if="withShell" />
 
-  <RouterView v-else />
+  <RouterView v-else v-slot="{ Component }">
+    <Transition :name="pageTransition" mode="out-in">
+      <component :is="Component" />
+    </Transition>
+  </RouterView>
 
   <AppToasts />
 </template>
+
+<style>
+@keyframes loading {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(300%);
+  }
+}
+</style>

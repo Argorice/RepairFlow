@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { Search, UserPlus, Users } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
 import { ApiError } from '@/api/client'
 import { usersApi } from '@/api/endpoints'
 import { UserRole, type UserDto } from '@/api/types'
+import PageHeader from '@/components/layout/PageHeader.vue'
+import AppAvatar from '@/components/ui/AppAvatar.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppChip from '@/components/ui/AppChip.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonBlock from '@/components/ui/SkeletonBlock.vue'
-import { formatDateTime, initials } from '@/lib/format'
-import { ROLE_LABELS } from '@/lib/status'
+import { t } from '@/i18n'
+import { formatDate } from '@/lib/format'
+import { roleLabel } from '@/lib/status'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toasts'
 
@@ -20,12 +25,13 @@ const toasts = useToastStore()
 const users = ref<UserDto[]>([])
 const loading = ref(true)
 const search = ref('')
-const roleFilter = ref('')
+const roleFilter = ref<UserRole | ''>('')
 
 const creating = ref(false)
 const saving = ref(false)
 const createError = ref<ApiError | null>(null)
-const draft = ref({
+
+const emptyDraft = () => ({
   email: '',
   password: '',
   fullName: '',
@@ -33,19 +39,21 @@ const draft = ref({
   role: UserRole.Technician as UserRole,
 })
 
-const roleOptions = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
-const staffRoleOptions = roleOptions.filter((option) => option.value !== UserRole.Client)
+const draft = ref(emptyDraft())
+
+const ROLES = Object.values(UserRole)
+
+const roleOptions = computed(() => ROLES.map((value) => ({ value, label: roleLabel(value) })))
+const staffRoleOptions = computed(() => roleOptions.value.filter((option) => option.value !== UserRole.Client))
 
 async function load(): Promise<void> {
-  loading.value = true
-
   try {
     users.value = await usersApi.list({
-      role: (roleFilter.value as UserRole) || undefined,
+      role: roleFilter.value || undefined,
       search: search.value || undefined,
     })
   } catch (error) {
-    toasts.error(error instanceof ApiError ? error.message : 'Не удалось загрузить пользователей.')
+    toasts.error(error instanceof ApiError ? error.message : t('users.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -55,9 +63,9 @@ async function changeRole(user: UserDto, role: UserRole): Promise<void> {
   try {
     const updated = await usersApi.update(user.id, { role })
     users.value = users.value.map((item) => (item.id === updated.id ? updated : item))
-    toasts.success(`${updated.fullName}: роль изменена`)
+    toasts.success(t('users.roleChanged', { name: updated.fullName, role: roleLabel(updated.role) }))
   } catch (error) {
-    toasts.error(error instanceof ApiError ? error.message : 'Не удалось изменить роль.')
+    toasts.error(error instanceof ApiError ? error.message : t('users.roleFailed'))
     await load()
   }
 }
@@ -66,10 +74,16 @@ async function toggleActive(user: UserDto): Promise<void> {
   try {
     const updated = await usersApi.update(user.id, { isActive: !user.isActive })
     users.value = users.value.map((item) => (item.id === updated.id ? updated : item))
-    toasts.success(updated.isActive ? 'Учётная запись включена' : 'Учётная запись отключена')
+    toasts.success(updated.isActive ? t('users.enabled') : t('users.disabled'))
   } catch (error) {
-    toasts.error(error instanceof ApiError ? error.message : 'Не удалось изменить статус.')
+    toasts.error(error instanceof ApiError ? error.message : t('users.statusFailed'))
   }
+}
+
+function openCreate(): void {
+  draft.value = emptyDraft()
+  createError.value = null
+  creating.value = true
 }
 
 async function create(): Promise<void> {
@@ -86,12 +100,11 @@ async function create(): Promise<void> {
     })
 
     creating.value = false
-    draft.value = { email: '', password: '', fullName: '', phone: '', role: UserRole.Technician }
-    toasts.success('Сотрудник добавлен')
+    toasts.success(t('users.created'))
     await load()
   } catch (exception) {
     createError.value = exception instanceof ApiError ? exception : null
-    toasts.error(createError.value?.message ?? 'Не удалось создать пользователя.')
+    toasts.error(createError.value?.message ?? t('users.createFailed'))
   } finally {
     saving.value = false
   }
@@ -99,118 +112,133 @@ async function create(): Promise<void> {
 
 let debounce: number | undefined
 
-function onFilterChange(): void {
+function reloadSoon(): void {
   window.clearTimeout(debounce)
   debounce = window.setTimeout(load, 250)
+}
+
+function setRole(role: UserRole | ''): void {
+  roleFilter.value = role
+  void load()
 }
 
 onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="font-display text-2xl font-bold">Пользователи</h1>
-        <p class="mt-1 text-sm text-slate-500">Роли, доступ и контакты сотрудников и клиентов</p>
-      </div>
+  <div class="space-y-5">
+    <PageHeader :title="t('nav.users')" :description="t('users.subtitle')">
+      <template #actions>
+        <div class="hidden lg:block">
+          <AppButton :icon="UserPlus" @click="openCreate">{{ t('users.add') }}</AppButton>
+        </div>
+      </template>
+    </PageHeader>
 
-      <AppButton @click="creating = true">Добавить сотрудника</AppButton>
-    </header>
+    <!-- На телефоне кнопка добавления живёт в верхней панели -->
+    <Teleport to="#appbar-actions" defer>
+      <AppButton variant="ghost" square :icon="UserPlus" :label="t('users.add')" class="text-accent-ink" @click="openCreate" />
+    </Teleport>
 
-    <div class="card grid gap-3 p-4 sm:grid-cols-2">
-      <AppInput v-model="search" label="Поиск" placeholder="Имя или почта" @update:model-value="onFilterChange" />
-      <AppSelect
-        v-model="roleFilter"
-        label="Роль"
-        placeholder="Все роли"
-        :options="roleOptions"
-        @update:model-value="onFilterChange"
+    <div class="space-y-3">
+      <AppInput
+        v-model="search"
+        type="search"
+        inputmode="search"
+        :icon="Search"
+        :placeholder="t('users.searchPlaceholder')"
+        :aria-label="t('users.search')"
+        @update:model-value="reloadSoon"
       />
+
+      <div class="-mx-4 flex gap-2 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0" role="group" :aria-label="t('users.roleFilter')">
+        <AppChip :active="roleFilter === ''" @click="setRole('')">{{ t('users.allRoles') }}</AppChip>
+        <AppChip v-for="role in ROLES" :key="role" :active="roleFilter === role" @click="setRole(role)">
+          {{ roleLabel(role) }}
+        </AppChip>
+      </div>
     </div>
 
     <div class="card overflow-hidden">
-      <SkeletonBlock v-if="loading" :lines="6" class="p-6" />
+      <SkeletonBlock v-if="loading" variant="rows" :lines="6" />
 
-      <EmptyState
-        v-else-if="users.length === 0"
-        title="Никого не найдено"
-        description="Измените фильтры или добавьте сотрудника."
-      />
+      <EmptyState v-else-if="users.length === 0" :icon="Users" :title="t('users.emptyTitle')" :description="t('users.emptyText')" />
 
-      <ul v-else class="divide-y divide-slate-100">
+      <ul v-else class="divide-y divide-line">
         <li
           v-for="user in users"
           :key="user.id"
-          class="flex flex-wrap items-center gap-4 px-4 py-4"
-          :class="user.isActive ? '' : 'opacity-60'"
+          class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-3 px-4 py-4 sm:grid-cols-[auto_minmax(0,1fr)_10rem_auto] sm:gap-x-4"
         >
-          <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
-            {{ initials(user.fullName) }}
-          </span>
+          <AppAvatar :name="user.fullName" :tone="user.isActive ? 'accent' : 'neutral'" />
 
-          <div class="min-w-0 flex-1">
-            <p class="truncate font-medium text-slate-900">
-              {{ user.fullName }}
-              <span v-if="user.id === auth.user?.id" class="ml-1 text-xs text-slate-400">— это вы</span>
+          <div class="min-w-0" :class="user.isActive ? '' : 'opacity-60'">
+            <p class="flex items-center gap-2 truncate font-medium text-ink">
+              <span class="truncate">{{ user.fullName }}</span>
+              <span v-if="user.id === auth.user?.id" class="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-ink-2">
+                {{ t('users.you') }}
+              </span>
+              <span v-if="!user.isActive" class="shrink-0 rounded-full bg-neutral-soft px-2 py-0.5 text-[11px] text-neutral-ink">
+                {{ t('users.inactive') }}
+              </span>
             </p>
-            <p class="truncate text-sm text-slate-500">{{ user.email }}</p>
-            <p class="text-xs text-slate-400">
-              {{ user.phone ?? 'Телефон не указан' }} · с {{ formatDateTime(user.createdAt) }}
+            <p class="truncate text-sm text-ink-2">{{ user.email }}</p>
+            <p class="truncate text-xs text-ink-3">
+              {{ user.phone ?? t('users.noPhone') }} · {{ t('users.since', { date: formatDate(user.createdAt) }) }}
             </p>
           </div>
 
-          <div class="w-40">
+          <!-- На телефоне управление уходит второй строкой под имя -->
+          <div class="col-span-2 flex items-center gap-2 sm:col-span-2 sm:contents">
             <AppSelect
+              class="flex-1 sm:flex-none"
               :model-value="user.role"
               :options="roleOptions"
+              :aria-label="t('users.roleFor', { name: user.fullName })"
               :disabled="user.id === auth.user?.id"
               @update:model-value="(value) => changeRole(user, value as UserRole)"
             />
-          </div>
 
-          <AppButton
-            variant="ghost"
-            size="sm"
-            :disabled="user.id === auth.user?.id"
-            @click="toggleActive(user)"
-          >
-            {{ user.isActive ? 'Отключить' : 'Включить' }}
-          </AppButton>
+            <AppButton
+              :variant="user.isActive ? 'ghost' : 'soft'"
+              size="sm"
+              :disabled="user.id === auth.user?.id"
+              @click="toggleActive(user)"
+            >
+              {{ user.isActive ? t('users.disable') : t('users.enable') }}
+            </AppButton>
+          </div>
         </li>
       </ul>
     </div>
 
-    <AppModal
-      v-if="creating"
-      title="Новый сотрудник"
-      description="Пароль сотрудник сможет сменить в своём профиле."
-      @close="creating = false"
-    >
-      <div class="space-y-4">
-        <AppInput v-model="draft.fullName" label="Имя" required :error="createError?.fieldError('fullName')" />
+    <AppModal v-if="creating" :title="t('users.newTitle')" :description="t('users.newText')" @close="creating = false">
+      <form id="create-user" class="space-y-4" @submit.prevent="create">
+        <AppInput v-model="draft.fullName" :label="t('fields.fullName')" required :error="createError?.fieldError('fullName')" />
         <AppInput
           v-model="draft.email"
-          label="Почта"
+          :label="t('fields.email')"
           type="email"
+          inputmode="email"
           required
           :error="createError?.fieldError('email')"
         />
         <AppInput
           v-model="draft.password"
-          label="Пароль"
+          :label="t('fields.password')"
           type="password"
+          autocomplete="new-password"
           required
-          hint="Не короче 8 символов"
+          :hint="t('fields.passwordHint')"
           :error="createError?.fieldError('password')"
         />
-        <AppInput v-model="draft.phone" label="Телефон" type="tel" />
-        <AppSelect v-model="draft.role" label="Роль" :options="staffRoleOptions" />
-      </div>
+        <AppInput v-model="draft.phone" :label="t('fields.phone')" type="tel" inputmode="tel" />
+        <AppSelect v-model="draft.role" :label="t('fields.role')" :options="staffRoleOptions" />
+      </form>
 
       <template #actions>
-        <AppButton variant="secondary" @click="creating = false">Отмена</AppButton>
-        <AppButton :loading="saving" @click="create">Добавить</AppButton>
+        <AppButton variant="secondary" @click="creating = false">{{ t('common.cancel') }}</AppButton>
+        <AppButton type="submit" form="create-user" :loading="saving">{{ t('common.add') }}</AppButton>
       </template>
     </AppModal>
   </div>

@@ -10,6 +10,7 @@ withDefaults(
     rows?: number
     required?: boolean
     disabled?: boolean
+    ariaLabel?: string
   }>(),
   { rows: 4 },
 )
@@ -22,7 +23,7 @@ const id = useId()
   <div>
     <label v-if="label" :for="id" class="field-label">
       {{ label }}
-      <span v-if="required" class="text-rose-500">*</span>
+      <span v-if="required" class="text-danger-ink" aria-hidden="true">*</span>
     </label>
 
     <textarea
@@ -31,12 +32,14 @@ const id = useId()
       :rows="rows"
       :placeholder="placeholder"
       :disabled="disabled"
+      :required="required"
+      :aria-label="ariaLabel"
       :aria-invalid="Boolean(error)"
-      class="w-full resize-y rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:bg-slate-50"
-      :class="error ? 'border-rose-400' : 'border-slate-200'"
+      :aria-describedby="error ? `${id}-error` : hint ? `${id}-hint` : undefined"
+      class="control h-auto min-h-24 resize-y py-2.5 leading-relaxed"
     />
 
-    <p v-if="error" class="field-error">{{ error }}</p>
-    <p v-else-if="hint" class="mt-1.5 text-sm text-slate-500">{{ hint }}</p>
+    <p v-if="error" :id="`${id}-error`" class="field-error">{{ error }}</p>
+    <p v-else-if="hint" :id="`${id}-hint`" class="field-hint">{{ hint }}</p>
   </div>
 </template>

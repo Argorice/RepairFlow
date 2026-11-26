@@ -1,4 +1,5 @@
 import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
+import { locale, t } from '@/i18n'
 import type { AuthResponse, ProblemDetails } from './types'
 
 /**
@@ -77,6 +78,9 @@ http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (accessToken) {
     config.headers.set('Authorization', `Bearer ${accessToken}`)
   }
+
+  // Сервер отвечает ошибками на языке интерфейса — сообщения валидации и отказы показываются как есть.
+  config.headers.set('Accept-Language', locale.value)
   return config
 })
 
@@ -98,7 +102,12 @@ export async function refreshSession(timeoutMs: number = REQUEST_TIMEOUT_MS): Pr
       const { data } = await axios.post<AuthResponse>(
         '/api/auth/refresh',
         {},
-        { baseURL: apiBaseUrl, withCredentials: true, timeout: timeoutMs },
+        {
+          baseURL: apiBaseUrl,
+          withCredentials: true,
+          timeout: timeoutMs,
+          headers: { 'Accept-Language': locale.value },
+        },
       )
 
       setAccessToken(data.accessToken)
@@ -145,7 +154,12 @@ function toApiError(error: AxiosError<ProblemDetails>): ApiError {
   const problem = error.response?.data
 
   if (!error.response) {
-    return new ApiError('Сервер недоступен. Проверьте подключение к сети.', 0)
+    return new ApiError(
+      error.code === AxiosError.ECONNABORTED || error.code === AxiosError.ETIMEDOUT
+        ? t('errors.timeout')
+        : t('errors.network'),
+      0,
+    )
   }
 
   const message =
@@ -159,18 +173,18 @@ function toApiError(error: AxiosError<ProblemDetails>): ApiError {
 function defaultMessageFor(status: number): string {
   switch (status) {
     case 400:
-      return 'Запрос не прошёл проверку.'
+      return t('errors.badRequest')
     case 401:
-      return 'Нужно войти заново.'
+      return t('errors.unauthorized')
     case 403:
-      return 'Недостаточно прав для этого действия.'
+      return t('errors.forbidden')
     case 404:
-      return 'Запись не найдена.'
+      return t('errors.notFound')
     case 409:
-      return 'Действие сейчас недопустимо.'
+      return t('errors.conflict')
     case 413:
-      return 'Файл слишком большой.'
+      return t('errors.tooLarge')
     default:
-      return 'Что-то пошло не так. Попробуйте ещё раз.'
+      return t('errors.unknown')
   }
 }

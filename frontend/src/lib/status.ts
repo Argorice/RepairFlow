@@ -1,62 +1,92 @@
-import { OrderPriority, OrderStatus, UserRole } from '@/api/types'
+import { OrderItemType, OrderPriority, OrderStatus, UserRole } from '@/api/types'
+import { t } from '@/i18n'
 
-interface StatusStyle {
-  /** Классы бейджа: мягкая заливка, тёмный текст, тонкая рамка. */
+/**
+ * Тон — смысловой цвет статуса. Классы собраны целиком, а не склеены из кусочков:
+ * Tailwind находит утилиты по полному имени в исходниках, `bg-${tone}-soft` он бы не увидел.
+ */
+export type Tone = 'neutral' | 'info' | 'warn' | 'accent' | 'success' | 'done' | 'danger'
+
+interface ToneClasses {
+  /** Бейдж: мягкая заливка, тёмный текст, тонкая рамка. */
   badge: string
-  /** Заливка точки и пройденного шага временной шкалы. */
+  /** Заливка точки и пройденного шага шкалы. */
   solid: string
   /** Цвет текста для акцентов. */
   text: string
+  /** Мягкая заливка без текста — фон иконки, плашки. */
+  soft: string
 }
 
-const STATUS_STYLES: Record<OrderStatus, StatusStyle> = {
-  [OrderStatus.New]: {
-    badge: 'bg-slate-100 text-slate-700 ring-slate-200',
-    solid: 'bg-slate-500',
-    text: 'text-slate-600',
+const TONES: Record<Tone, ToneClasses> = {
+  neutral: {
+    badge: 'bg-neutral-soft text-neutral-ink ring-neutral-line',
+    solid: 'bg-neutral-solid',
+    text: 'text-neutral-ink',
+    soft: 'bg-neutral-soft',
   },
-  [OrderStatus.Diagnostics]: {
-    badge: 'bg-sky-50 text-sky-700 ring-sky-200',
-    solid: 'bg-sky-500',
-    text: 'text-sky-600',
+  info: {
+    badge: 'bg-info-soft text-info-ink ring-info-line',
+    solid: 'bg-info-solid',
+    text: 'text-info-ink',
+    soft: 'bg-info-soft',
   },
-  [OrderStatus.AwaitingEstimateApproval]: {
-    badge: 'bg-amber-50 text-amber-700 ring-amber-200',
-    solid: 'bg-amber-500',
-    text: 'text-amber-600',
+  warn: {
+    badge: 'bg-warn-soft text-warn-ink ring-warn-line',
+    solid: 'bg-warn-solid',
+    text: 'text-warn-ink',
+    soft: 'bg-warn-soft',
   },
-  [OrderStatus.InProgress]: {
-    badge: 'bg-brand-50 text-brand-700 ring-brand-200',
-    solid: 'bg-brand-600',
-    text: 'text-brand-600',
+  accent: {
+    badge: 'bg-accent-soft text-accent-ink ring-accent-line',
+    solid: 'bg-accent',
+    text: 'text-accent-ink',
+    soft: 'bg-accent-soft',
   },
-  [OrderStatus.ReadyForPickup]: {
-    badge: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-    solid: 'bg-emerald-500',
-    text: 'text-emerald-600',
+  success: {
+    badge: 'bg-success-soft text-success-ink ring-success-line',
+    solid: 'bg-success-solid',
+    text: 'text-success-ink',
+    soft: 'bg-success-soft',
   },
-  [OrderStatus.Completed]: {
-    badge: 'bg-emerald-100 text-emerald-800 ring-emerald-300',
-    solid: 'bg-emerald-700',
-    text: 'text-emerald-700',
+  done: {
+    badge: 'bg-done-soft text-done-ink ring-done-line',
+    solid: 'bg-done-solid',
+    text: 'text-done-ink',
+    soft: 'bg-done-soft',
   },
-  [OrderStatus.Cancelled]: {
-    badge: 'bg-slate-100 text-slate-500 ring-slate-200',
-    solid: 'bg-slate-400',
-    text: 'text-slate-500',
-  },
-  [OrderStatus.ClientRejected]: {
-    badge: 'bg-rose-50 text-rose-700 ring-rose-200',
-    solid: 'bg-rose-500',
-    text: 'text-rose-600',
+  danger: {
+    badge: 'bg-danger-soft text-danger-ink ring-danger-line',
+    solid: 'bg-danger-solid',
+    text: 'text-danger-ink',
+    soft: 'bg-danger-soft',
   },
 }
 
-export function statusStyle(status: OrderStatus): StatusStyle {
-  return STATUS_STYLES[status] ?? STATUS_STYLES[OrderStatus.New]
+const STATUS_TONES: Record<OrderStatus, Tone> = {
+  [OrderStatus.New]: 'neutral',
+  [OrderStatus.Diagnostics]: 'info',
+  [OrderStatus.AwaitingEstimateApproval]: 'warn',
+  [OrderStatus.InProgress]: 'accent',
+  [OrderStatus.ReadyForPickup]: 'success',
+  [OrderStatus.Completed]: 'done',
+  [OrderStatus.Cancelled]: 'neutral',
+  [OrderStatus.ClientRejected]: 'danger',
 }
 
-/** Основной маршрут заявки — по нему рисуется временная шкала в карточке. */
+export function toneClasses(tone: Tone): ToneClasses {
+  return TONES[tone]
+}
+
+export function statusTone(status: OrderStatus): Tone {
+  return STATUS_TONES[status] ?? 'neutral'
+}
+
+export function statusStyle(status: OrderStatus): ToneClasses {
+  return TONES[statusTone(status)]
+}
+
+/** Основной маршрут заявки — по нему рисуется шкала в карточке. */
 export const MAIN_PATH: OrderStatus[] = [
   OrderStatus.New,
   OrderStatus.Diagnostics,
@@ -68,31 +98,33 @@ export const MAIN_PATH: OrderStatus[] = [
 
 export const TERMINAL_STATUSES: OrderStatus[] = [OrderStatus.Cancelled, OrderStatus.ClientRejected]
 
-export const STATUS_LABELS: Record<OrderStatus, string> = {
-  [OrderStatus.New]: 'Новая',
-  [OrderStatus.Diagnostics]: 'Диагностика',
-  [OrderStatus.AwaitingEstimateApproval]: 'Ожидает сметы',
-  [OrderStatus.InProgress]: 'В работе',
-  [OrderStatus.ReadyForPickup]: 'Готова к выдаче',
-  [OrderStatus.Completed]: 'Выдана',
-  [OrderStatus.Cancelled]: 'Отменена',
-  [OrderStatus.ClientRejected]: 'Отказ клиента',
+export const ALL_STATUSES = Object.values(OrderStatus)
+
+/**
+ * Подписи строятся на клиенте из enum, а не берутся из ответа сервера: так язык интерфейса
+ * переключается мгновенно, без перезапроса данных.
+ */
+export const statusLabel = (status: OrderStatus): string => t(`status.${status}`)
+
+export const priorityLabel = (priority: OrderPriority): string => t(`priority.${priority}`)
+
+export const roleLabel = (role: UserRole): string => t(`role.${role}`)
+
+export const itemTypeLabel = (type: OrderItemType): string => t(`itemType.${type}`)
+
+/**
+ * Кнопка перехода называет действие, а не статус: «Начать диагностику» вместо «Диагностика».
+ * Возврат сметы на доработку — единственный переход, которому нужно знать и откуда идём.
+ */
+export function transitionLabel(from: OrderStatus, to: OrderStatus): string {
+  if (from === OrderStatus.AwaitingEstimateApproval && to === OrderStatus.Diagnostics) {
+    return t('transition.reviseEstimate')
+  }
+
+  return t(`transition.${to}`)
 }
 
-export const PRIORITY_LABELS: Record<OrderPriority, string> = {
-  [OrderPriority.Low]: 'Низкий',
-  [OrderPriority.Normal]: 'Обычный',
-  [OrderPriority.High]: 'Высокий',
-}
-
-export const PRIORITY_STYLES: Record<OrderPriority, string> = {
-  [OrderPriority.Low]: 'text-slate-400',
-  [OrderPriority.Normal]: 'text-slate-400',
-  [OrderPriority.High]: 'text-rose-500',
-}
-
-export const ROLE_LABELS: Record<UserRole, string> = {
-  [UserRole.Client]: 'Клиент',
-  [UserRole.Technician]: 'Мастер',
-  [UserRole.Manager]: 'Менеджер',
+/** Отмена и отказ — действия «назад», они не должны спорить с основной кнопкой. */
+export function isDestructiveTransition(to: OrderStatus): boolean {
+  return to === OrderStatus.Cancelled || to === OrderStatus.ClientRejected
 }

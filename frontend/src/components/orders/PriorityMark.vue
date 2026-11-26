@@ -1,27 +1,22 @@
 <script setup lang="ts">
+import { ArrowDown, Flame } from '@lucide/vue'
 import { OrderPriority } from '@/api/types'
-import { PRIORITY_LABELS, PRIORITY_STYLES } from '@/lib/status'
+import { t } from '@/i18n'
+import { priorityLabel } from '@/lib/status'
 
-defineProps<{ priority: OrderPriority }>()
+/** Обычный приоритет не рисуется вовсе: метка есть только у того, что отличается от нормы. */
+defineProps<{ priority: OrderPriority; withLabel?: boolean }>()
 </script>
 
 <template>
   <span
     v-if="priority !== OrderPriority.Normal"
     class="inline-flex items-center gap-1 text-xs font-medium"
-    :class="PRIORITY_STYLES[priority]"
-    :title="`Приоритет: ${PRIORITY_LABELS[priority]}`"
+    :class="priority === OrderPriority.High ? 'text-danger-ink' : 'text-ink-3'"
+    :title="t('priority.tooltip', { value: priorityLabel(priority) })"
   >
-    <svg class="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        v-if="priority === OrderPriority.High"
-        d="M12 4v10m0 6h.01"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-      />
-      <path v-else d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-    </svg>
-    {{ PRIORITY_LABELS[priority] }}
+    <Flame v-if="priority === OrderPriority.High" class="size-3.5" aria-hidden="true" />
+    <ArrowDown v-else class="size-3.5" aria-hidden="true" />
+    <span :class="withLabel ? '' : 'sr-only'">{{ priorityLabel(priority) }}</span>
   </span>
 </template>

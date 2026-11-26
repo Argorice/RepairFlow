@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { LoaderCircle } from '@lucide/vue'
+import { computed, type Component } from 'vue'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
-type Size = 'sm' | 'md'
+type Variant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger'
+type Size = 'sm' | 'md' | 'lg'
 
 const props = withDefaults(
   defineProps<{
@@ -11,6 +12,11 @@ const props = withDefaults(
     loading?: boolean
     disabled?: boolean
     block?: boolean
+    /** Иконка перед текстом. Для кнопки-иконки без текста — вместе с `square` и `label`. */
+    icon?: Component
+    square?: boolean
+    /** Доступное имя для кнопки без текста: экранный диктор прочитает его вместо иконки. */
+    label?: string
     type?: 'button' | 'submit'
   }>(),
   {
@@ -19,43 +25,45 @@ const props = withDefaults(
     loading: false,
     disabled: false,
     block: false,
+    square: false,
     type: 'button',
   },
 )
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-600/50',
-  secondary: 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50',
-  ghost: 'text-slate-600 hover:bg-slate-100',
-  danger: 'bg-rose-600 text-white hover:bg-rose-700',
+  primary: 'bg-accent text-on-accent hover:bg-accent-hover',
+  secondary: 'bg-surface text-ink ring-1 ring-inset ring-line hover:bg-surface-2 hover:ring-line-strong',
+  soft: 'bg-accent-soft text-accent-ink hover:bg-accent-soft/70',
+  ghost: 'text-ink-2 hover:bg-surface-2 hover:text-ink',
+  danger: 'bg-danger-soft text-danger-ink ring-1 ring-inset ring-danger-line hover:bg-danger-soft/70',
 }
 
-const SIZES: Record<Size, string> = {
-  sm: 'h-8 px-3 text-sm',
-  md: 'h-10 px-4 text-sm',
+/** На телефоне кнопки выше: палец промахивается чаще курсора, 44px — минимум по гайдлайнам. */
+const SIZES: Record<Size, { base: string; square: string; icon: string }> = {
+  sm: { base: 'h-9 px-3 text-sm gap-1.5', square: 'size-9', icon: 'size-4' },
+  md: { base: 'h-11 px-4 text-sm gap-2 sm:h-10', square: 'size-11 sm:size-10', icon: 'size-[18px]' },
+  lg: { base: 'h-12 px-5 text-base gap-2', square: 'size-12', icon: 'size-5' },
 }
 
 const classes = computed(() => [
-  'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
-  'disabled:cursor-not-allowed disabled:opacity-60',
+  'pressable inline-flex shrink-0 select-none items-center justify-center rounded-xl font-medium transition-colors',
+  'disabled:pointer-events-none disabled:opacity-50',
   VARIANTS[props.variant],
-  SIZES[props.size],
+  props.square ? SIZES[props.size].square : SIZES[props.size].base,
   props.block ? 'w-full' : '',
 ])
 </script>
 
 <template>
-  <button :type="type" :class="classes" :disabled="disabled || loading">
-    <svg
-      v-if="loading"
-      class="size-4 animate-spin"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
-    </svg>
+  <button
+    :type="type"
+    :class="classes"
+    :disabled="disabled || loading"
+    :aria-label="label"
+    :aria-busy="loading || undefined"
+  >
+    <LoaderCircle v-if="loading" :class="SIZES[size].icon" class="animate-spin" aria-hidden="true" />
+    <component :is="icon" v-else-if="icon" :class="SIZES[size].icon" aria-hidden="true" />
     <slot />
   </button>
 </template>

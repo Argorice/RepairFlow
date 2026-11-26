@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { ChevronRight, ClipboardList, Plus, Search, SlidersHorizontal } from '@lucide/vue'
+import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { ordersApi, usersApi } from '@/api/endpoints'
@@ -12,16 +13,21 @@ import {
   type PagedResult,
   type UserDto,
 } from '@/api/types'
+import PageHeader from '@/components/layout/PageHeader.vue'
+import DeviceIcon from '@/components/orders/DeviceIcon.vue'
 import PriorityMark from '@/components/orders/PriorityMark.vue'
 import StatusBadge from '@/components/orders/StatusBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppChip from '@/components/ui/AppChip.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppModal from '@/components/ui/AppModal.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonBlock from '@/components/ui/SkeletonBlock.vue'
-import { formatDateTime, formatMoney } from '@/lib/format'
-import { PRIORITY_LABELS, STATUS_LABELS } from '@/lib/status'
+import { t } from '@/i18n'
+import { formatMoney, formatRelative } from '@/lib/format'
+import { ALL_STATUSES, priorityLabel, statusLabel } from '@/lib/status'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toasts'
 
@@ -33,6 +39,7 @@ const router = useRouter()
 const loading = ref(true)
 const result = ref<PagedResult<OrderListItemDto> | null>(null)
 const technicians = ref<UserDto[]>([])
+const filtersOpen = ref(false)
 
 /** Фильтры живут в query-строке: ссылку на отобранный список можно просто переслать коллеге. */
 const filters = reactive({
@@ -46,28 +53,37 @@ const filters = reactive({
   page: Number(route.query.page ?? 1),
 })
 
-const statusOptions = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))
-const priorityOptions = Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))
-const sortOptions = [
-  { value: '-createdAt', label: 'Сначала новые' },
-  { value: 'createdAt', label: 'Сначала старые' },
-  { value: '-updatedAt', label: 'Недавно изменённые' },
-  { value: '-priority', label: 'Сначала срочные' },
-  { value: 'number', label: 'По номеру' },
-]
+const priorityOptions = computed(() =>
+  Object.values(OrderPriority).map((value) => ({ value, label: priorityLabel(value) })),
+)
+
+const sortOptions = computed(() => [
+  { value: '-createdAt', label: t('orders.sort.newest') },
+  { value: 'createdAt', label: t('orders.sort.oldest') },
+  { value: '-updatedAt', label: t('orders.sort.updated') },
+  { value: '-priority', label: t('orders.sort.urgent') },
+  { value: 'number', label: t('orders.sort.number') },
+])
 
 const technicianOptions = computed(() =>
   technicians.value.map((technician) => ({ value: technician.id, label: technician.fullName })),
 )
 
+/** Сколько фильтров спрятано в шторке — число на кнопке, чтобы активный фильтр не терялся. */
+const hiddenFilterCount = computed(
+  () => [filters.priority, filters.technicianId, filters.from, filters.to].filter(Boolean).length,
+)
+
 const hasActiveFilters = computed(
-  () =>
-    Boolean(filters.search) ||
-    Boolean(filters.status) ||
-    Boolean(filters.priority) ||
-    Boolean(filters.technicianId) ||
-    Boolean(filters.from) ||
-    Boolean(filters.to),
+  () => Boolean(filters.search) || Boolean(filters.status) || hiddenFilterCount.value > 0,
+)
+
+const subtitle = computed(() =>
+  auth.isClient
+    ? t('orders.subtitleClient')
+    : auth.isTechnician
+      ? t('orders.subtitleTechnician')
+      : t('orders.subtitleManager'),
 )
 
 function buildQuery(): OrderQuery {
@@ -84,13 +100,15 @@ function buildQuery(): OrderQuery {
   }
 }
 
-async function load(): Promise<void> {
-  loading.value = true
+async function load(silent = false): Promise<void> {
+  if (!silent) {
+    loading.value = true
+  }
 
   try {
     result.value = await ordersApi.list(buildQuery())
   } catch (error) {
-    toasts.error(error instanceof ApiError ? error.message : 'Не удалось загрузить заявки.')
+    toasts.error(error instanceof ApiError ? error.message : t('orders.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -102,7 +120,7 @@ watch(
   () => ({ ...filters }),
   (next, previous) => {
     // Смена любого фильтра возвращает на первую страницу — иначе легко «провалиться» в пустоту.
-    if (previous && next.page === previous.page && next !== previous) {
+    if (previous && next.page === previous.page) {
       const changedFilter = Object.keys(next).some(
         (key) => key !== 'page' && next[key as keyof typeof next] !== previous[key as keyof typeof previous],
       )
@@ -123,7 +141,7 @@ watch(
     void router.replace({ query })
 
     window.clearTimeout(debounce)
-    debounce = window.setTimeout(load, 250)
+    debounce = window.setTimeout(() => void load(), 250)
   },
   { deep: true },
 )
@@ -137,8 +155,15 @@ function reset(): void {
   filters.to = ''
 }
 
+function open(order: OrderListItemDto): void {
+  void router.push({ name: 'order-details', params: { id: order.id } })
+}
+
+let mounted = false
+
 onMounted(async () => {
   await load()
+  mounted = true
 
   if (auth.isManager) {
     try {
@@ -148,145 +173,181 @@ onMounted(async () => {
     }
   }
 })
+
+// Список держится в памяти, пока открыта карточка. Вернулись — тихо подтягиваем изменения.
+onActivated(() => {
+  if (mounted) {
+    void load(true)
+  }
+})
 </script>
 
 <template>
-  <div class="space-y-6">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="font-display text-2xl font-bold">Заявки</h1>
-        <p class="mt-1 text-sm text-slate-500">
-          {{
-            auth.isClient
-              ? 'Ваши обращения в сервис'
-              : auth.isTechnician
-                ? 'Назначенные вам и свободные заявки'
-                : 'Все заявки мастерской'
-          }}
-        </p>
+  <div class="space-y-5">
+    <!-- Кнопка «Новая заявка» живёт в меню: в боковом на широком экране, в нижнем на телефоне -->
+    <PageHeader :title="auth.isClient ? t('nav.myOrders') : t('nav.orders')" :description="subtitle" />
+
+    <!-- Поиск и фильтры -->
+    <div class="space-y-3">
+      <div class="flex gap-2">
+        <AppInput
+          v-model="filters.search"
+          class="flex-1"
+          type="search"
+          inputmode="search"
+          :icon="Search"
+          :placeholder="t('orders.searchPlaceholder')"
+          :aria-label="t('orders.search')"
+        />
+
+        <AppSelect
+          v-model="filters.sort"
+          class="hidden w-56 sm:block"
+          :options="sortOptions"
+          :aria-label="t('orders.sortLabel')"
+        />
+
+        <button
+          type="button"
+          class="pressable relative inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-surface px-3.5 text-sm font-medium text-ink ring-1 ring-line ring-inset hover:bg-surface-2 sm:h-10"
+          :aria-label="t('orders.filters')"
+          @click="filtersOpen = true"
+        >
+          <SlidersHorizontal class="size-[18px]" aria-hidden="true" />
+          <span class="hidden sm:inline">{{ t('orders.filters') }}</span>
+          <span
+            v-if="hiddenFilterCount"
+            class="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-on-accent sm:static sm:size-auto sm:min-w-5 sm:px-1.5"
+          >
+            {{ hiddenFilterCount }}
+          </span>
+        </button>
       </div>
 
-      <AppButton v-if="auth.isClient" @click="router.push({ name: 'order-create' })">
-        Новая заявка
-      </AppButton>
-    </header>
-
-    <!-- Фильтры -->
-    <div class="card p-4">
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <AppInput v-model="filters.search" placeholder="Номер, модель, описание…" label="Поиск" />
-        <AppSelect v-model="filters.status" label="Статус" placeholder="Любой" :options="statusOptions" />
-        <AppSelect
-          v-model="filters.priority"
-          label="Приоритет"
-          placeholder="Любой"
-          :options="priorityOptions"
-        />
-        <AppSelect
-          v-if="auth.isManager"
-          v-model="filters.technicianId"
-          label="Мастер"
-          placeholder="Любой"
-          :options="technicianOptions"
-        />
-        <AppInput v-model="filters.from" label="Создана с" type="date" />
-        <AppInput v-model="filters.to" label="по" type="date" />
-        <AppSelect v-model="filters.sort" label="Сортировка" :options="sortOptions" />
-
-        <div class="flex items-end">
-          <AppButton v-if="hasActiveFilters" variant="ghost" size="sm" @click="reset">
-            Сбросить фильтры
-          </AppButton>
-        </div>
+      <!-- Быстрый фильтр по статусу: самый частый вопрос — «что сейчас в работе» -->
+      <div
+        class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0"
+        role="group"
+        :aria-label="t('orders.statusFilter')"
+      >
+        <AppChip :active="!filters.status" @click="filters.status = ''">{{ t('orders.allStatuses') }}</AppChip>
+        <AppChip
+          v-for="status in ALL_STATUSES"
+          :key="status"
+          :active="filters.status === status"
+          @click="filters.status = filters.status === status ? '' : status"
+        >
+          {{ statusLabel(status) }}
+        </AppChip>
       </div>
     </div>
 
     <!-- Список -->
     <div class="card overflow-hidden">
-      <SkeletonBlock v-if="loading" :lines="6" class="p-6" />
+      <SkeletonBlock v-if="loading" variant="rows" :lines="6" />
 
       <EmptyState
         v-else-if="!result || result.items.length === 0"
-        title="Заявок не найдено"
+        :icon="ClipboardList"
+        :title="t('orders.emptyTitle')"
         :description="
           hasActiveFilters
-            ? 'Попробуйте ослабить фильтры — возможно, вы ищете слишком узко.'
+            ? t('orders.emptyFiltered')
             : auth.isClient
-              ? 'Создайте первую заявку — это займёт минуту.'
-              : 'Пока сюда ничего не поступало.'
+              ? t('orders.emptyClient')
+              : t('orders.emptyStaff')
         "
       >
-        <AppButton v-if="auth.isClient && !hasActiveFilters" @click="router.push({ name: 'order-create' })">
-          Создать заявку
+        <AppButton
+          v-if="auth.isClient && !hasActiveFilters"
+          :icon="Plus"
+          @click="router.push({ name: 'order-create' })"
+        >
+          {{ t('nav.newOrder') }}
         </AppButton>
         <AppButton v-else-if="hasActiveFilters" variant="secondary" @click="reset">
-          Сбросить фильтры
+          {{ t('orders.resetFilters') }}
         </AppButton>
       </EmptyState>
 
       <template v-else>
         <!-- Таблица на широком экране -->
         <table class="hidden w-full text-left text-sm md:table">
-          <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <thead class="border-b border-line text-xs text-ink-3">
             <tr>
-              <th class="px-4 py-3 font-medium">Номер</th>
-              <th class="px-4 py-3 font-medium">Устройство</th>
-              <th class="px-4 py-3 font-medium">Статус</th>
-              <th v-if="!auth.isClient" class="px-4 py-3 font-medium">Клиент</th>
-              <th class="px-4 py-3 font-medium">Мастер</th>
-              <th class="px-4 py-3 text-right font-medium">Смета</th>
-              <th class="px-4 py-3 font-medium">Обновлена</th>
+              <th class="py-3 pr-4 pl-5 font-medium">{{ t('orders.columns.request') }}</th>
+              <th class="px-4 py-3 font-medium">{{ t('orders.columns.status') }}</th>
+              <th v-if="!auth.isClient" class="px-4 py-3 font-medium">{{ t('orders.columns.client') }}</th>
+              <th class="px-4 py-3 font-medium">{{ t('orders.columns.technician') }}</th>
+              <th class="px-4 py-3 text-right font-medium">{{ t('orders.columns.estimate') }}</th>
+              <th class="py-3 pr-5 pl-4 text-right font-medium">{{ t('orders.columns.updated') }}</th>
             </tr>
           </thead>
 
-          <tbody class="divide-y divide-slate-100">
+          <tbody class="divide-y divide-line">
             <tr
               v-for="order in result.items"
               :key="order.id"
-              class="cursor-pointer transition-colors hover:bg-slate-50"
-              @click="router.push({ name: 'order-details', params: { id: order.id } })"
+              class="cursor-pointer transition-colors hover:bg-surface-2"
+              @click="open(order)"
             >
-              <td class="px-4 py-3">
-                <span class="font-medium text-slate-900 tabular">{{ order.number }}</span>
-                <PriorityMark :priority="order.priority" class="ml-2" />
+              <td class="py-3 pr-4 pl-5">
+                <RouterLink
+                  :to="{ name: 'order-details', params: { id: order.id } }"
+                  class="flex items-center gap-3 rounded-lg"
+                  @click.stop
+                >
+                  <DeviceIcon :type="order.deviceType" size="sm" />
+                  <span class="min-w-0">
+                    <span class="flex items-center gap-2">
+                      <span class="truncate font-medium text-ink">{{ order.brand }} {{ order.model }}</span>
+                      <PriorityMark :priority="order.priority" />
+                    </span>
+                    <span class="block text-xs text-ink-3">{{ order.number }} · {{ order.deviceType }}</span>
+                  </span>
+                </RouterLink>
               </td>
               <td class="px-4 py-3">
-                <p class="text-slate-900">{{ order.brand }} {{ order.model }}</p>
-                <p class="text-xs text-slate-500">{{ order.deviceType }}</p>
+                <StatusBadge :status="order.status" />
               </td>
-              <td class="px-4 py-3">
-                <StatusBadge :status="order.status" :label="order.statusLabel" />
-              </td>
-              <td v-if="!auth.isClient" class="px-4 py-3 text-slate-600">
-                {{ order.client.fullName }}
-              </td>
-              <td class="px-4 py-3 text-slate-600">
+              <td v-if="!auth.isClient" class="px-4 py-3 text-ink-2">{{ order.client.fullName }}</td>
+              <td class="px-4 py-3 text-ink-2">
                 {{ order.technician?.fullName ?? '—' }}
               </td>
-              <td class="px-4 py-3 text-right text-slate-900 tabular">
+              <td class="px-4 py-3 text-right text-ink tabular">
                 {{ formatMoney(order.finalCost ?? order.estimatedCost) }}
               </td>
-              <td class="px-4 py-3 text-slate-500 tabular">{{ formatDateTime(order.updatedAt) }}</td>
+              <td class="py-3 pr-5 pl-4 text-right whitespace-nowrap text-ink-3">{{ formatRelative(order.updatedAt) }}</td>
             </tr>
           </tbody>
         </table>
 
-        <!-- Карточки на мобильном -->
-        <ul class="divide-y divide-slate-100 md:hidden">
+        <!-- Список на телефоне: строка как в нативном приложении, вся строка — одна цель касания -->
+        <ul class="divide-y divide-line md:hidden">
           <li v-for="order in result.items" :key="order.id">
             <RouterLink
               :to="{ name: 'order-details', params: { id: order.id } }"
-              class="block px-4 py-4 transition-colors hover:bg-slate-50"
+              class="flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-surface-2"
             >
-              <div class="flex items-center justify-between gap-3">
-                <span class="font-medium tabular">{{ order.number }}</span>
-                <StatusBadge :status="order.status" :label="order.statusLabel" />
+              <DeviceIcon :type="order.deviceType" />
+
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <p class="truncate font-medium text-ink">{{ order.brand }} {{ order.model }}</p>
+                  <PriorityMark :priority="order.priority" />
+                </div>
+                <p class="mt-0.5 truncate text-xs text-ink-3">
+                  {{ order.number }} · {{ formatRelative(order.updatedAt) }}
+                </p>
+                <div class="mt-2 flex items-center justify-between gap-2">
+                  <StatusBadge :status="order.status" size="sm" />
+                  <span class="text-sm font-medium text-ink tabular">
+                    {{ formatMoney(order.finalCost ?? order.estimatedCost) }}
+                  </span>
+                </div>
               </div>
-              <p class="mt-1 text-sm text-slate-900">{{ order.brand }} {{ order.model }}</p>
-              <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
-                <span>{{ order.technician?.fullName ?? 'Мастер не назначен' }}</span>
-                <span class="tabular">{{ formatMoney(order.finalCost ?? order.estimatedCost) }}</span>
-              </div>
+
+              <ChevronRight class="size-5 shrink-0 text-ink-3" aria-hidden="true" />
             </RouterLink>
           </li>
         </ul>
@@ -301,5 +362,41 @@ onMounted(async () => {
         />
       </template>
     </div>
+
+    <!-- Остальные фильтры — в шторке: на телефоне им не место в основном экране -->
+    <AppModal v-if="filtersOpen" :title="t('orders.filters')" @close="filtersOpen = false">
+      <div class="space-y-4">
+        <AppSelect
+          v-model="filters.sort"
+          class="sm:hidden"
+          :label="t('orders.sortLabel')"
+          :options="sortOptions"
+        />
+        <AppSelect
+          v-model="filters.priority"
+          :label="t('orders.priority')"
+          :placeholder="t('orders.any')"
+          :options="priorityOptions"
+        />
+        <AppSelect
+          v-if="auth.isManager"
+          v-model="filters.technicianId"
+          :label="t('orders.columns.technician')"
+          :placeholder="t('orders.any')"
+          :options="technicianOptions"
+        />
+        <div class="grid grid-cols-2 gap-3">
+          <AppInput v-model="filters.from" :label="t('orders.createdFrom')" type="date" />
+          <AppInput v-model="filters.to" :label="t('orders.createdTo')" type="date" />
+        </div>
+      </div>
+
+      <template #actions>
+        <AppButton variant="secondary" :disabled="!hasActiveFilters" @click="reset">
+          {{ t('orders.resetFilters') }}
+        </AppButton>
+        <AppButton @click="filtersOpen = false">{{ t('orders.showResults') }}</AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

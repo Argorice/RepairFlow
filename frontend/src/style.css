@@ -1,38 +1,255 @@
 @import 'tailwindcss';
 
 /*
-  Дизайн-система проекта живёт здесь и в docs/design-system.md.
-  Правило простое: цветом выделяется действие и статус, всё остальное нейтральное.
-*/
-@theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  Дизайн-система живёт здесь и в docs/design-system.md.
 
-  /* Акцент — индиго */
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
+  Цвета заданы семантически: компонент просит «поверхность» или «вторичный текст»,
+  а не slate-200. Тема меняется подменой переменных на <html data-theme>, поэтому
+  в разметке почти нет dark:-вариантов — и забыть про тёмную тему в новом экране нельзя.
+
+  Правило прежнее: цветом выделяется действие и статус, всё остальное нейтральное.
+*/
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Manrope', 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* Индиго — единственный акцент. Шкала нужна для графиков и редких мест вне токенов. */
+  --color-brand-50: #eef0ff;
+  --color-brand-100: #e0e4ff;
+  --color-brand-200: #c7cdfd;
+  --color-brand-300: #a5b0fc;
+  --color-brand-400: #818cf8;
   --color-brand-500: #6366f1;
   --color-brand-600: #4f46e5;
   --color-brand-700: #4338ca;
 
-  /* Тени: ровно две на весь проект */
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-overlay: 0 8px 24px rgb(15 23 42 / 0.12);
+  /* Движение: одна кривая на всё приложение, короткие длительности — интерфейс, а не мультфильм. */
+  --ease-app: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-sheet-up: sheet-up 280ms var(--ease-app);
+  --animate-fade-in: fade-in 200ms var(--ease-app);
+  --animate-pop-in: pop-in 200ms var(--ease-app);
 
-  /* Скругления */
-  --radius-control: 0.5rem;
-  --radius-card: 0.75rem;
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+}
+
+/* Семантические токены: утилиты вида bg-surface, text-ink-2, border-line. */
+@theme inline {
+  --color-canvas: var(--rf-canvas);
+  --color-surface: var(--rf-surface);
+  --color-surface-2: var(--rf-surface-2);
+  --color-surface-3: var(--rf-surface-3);
+  --color-line: var(--rf-line);
+  --color-line-strong: var(--rf-line-strong);
+  --color-ink: var(--rf-ink);
+  --color-ink-2: var(--rf-ink-2);
+  --color-ink-3: var(--rf-ink-3);
+
+  --color-accent: var(--rf-accent);
+  --color-accent-hover: var(--rf-accent-hover);
+  --color-accent-ink: var(--rf-accent-ink);
+  --color-accent-soft: var(--rf-accent-soft);
+  --color-accent-line: var(--rf-accent-line);
+  --color-on-accent: var(--rf-on-accent);
+
+  /* Тона статусов: мягкая заливка, текст, насыщенная точка, рамка. */
+  --color-neutral-soft: var(--rf-neutral-soft);
+  --color-neutral-ink: var(--rf-neutral-ink);
+  --color-neutral-solid: var(--rf-neutral-solid);
+  --color-neutral-line: var(--rf-neutral-line);
+
+  --color-info-soft: var(--rf-info-soft);
+  --color-info-ink: var(--rf-info-ink);
+  --color-info-solid: var(--rf-info-solid);
+  --color-info-line: var(--rf-info-line);
+
+  --color-warn-soft: var(--rf-warn-soft);
+  --color-warn-ink: var(--rf-warn-ink);
+  --color-warn-solid: var(--rf-warn-solid);
+  --color-warn-line: var(--rf-warn-line);
+
+  --color-success-soft: var(--rf-success-soft);
+  --color-success-ink: var(--rf-success-ink);
+  --color-success-solid: var(--rf-success-solid);
+  --color-success-line: var(--rf-success-line);
+
+  --color-done-soft: var(--rf-done-soft);
+  --color-done-ink: var(--rf-done-ink);
+  --color-done-solid: var(--rf-done-solid);
+  --color-done-line: var(--rf-done-line);
+
+  --color-danger-soft: var(--rf-danger-soft);
+  --color-danger-ink: var(--rf-danger-ink);
+  --color-danger-solid: var(--rf-danger-solid);
+  --color-danger-line: var(--rf-danger-line);
+
+  /* Ровно две тени на весь проект: карточка и всё, что всплывает поверх. */
+  --shadow-card: var(--rf-shadow-card);
+  --shadow-overlay: var(--rf-shadow-overlay);
+}
+
+:root {
+  color-scheme: light;
+
+  --rf-canvas: #f4f5f9;
+  --rf-surface: #ffffff;
+  --rf-surface-2: #f1f3f8;
+  --rf-surface-3: #e7eaf2;
+  --rf-line: #e3e6ee;
+  --rf-line-strong: #cdd2de;
+  --rf-ink: #0f172a;
+  --rf-ink-2: #4a5268;
+  /* Приглушённый текст — всё ещё 4.5:1 к фону: им набраны даты, номера и подсказки. */
+  --rf-ink-3: #656c82;
+
+  --rf-accent: #4f46e5;
+  --rf-accent-hover: #4338ca;
+  --rf-accent-ink: #4338ca;
+  --rf-accent-soft: #eef0ff;
+  --rf-accent-line: #c7cdfd;
+  --rf-on-accent: #ffffff;
+
+  --rf-neutral-soft: #eef0f4;
+  --rf-neutral-ink: #4a5268;
+  --rf-neutral-solid: #8a91a6;
+  --rf-neutral-line: #dde1ea;
+
+  --rf-info-soft: #e9f5fd;
+  --rf-info-ink: #0369a1;
+  --rf-info-solid: #0ea5e9;
+  --rf-info-line: #bfe3f9;
+
+  --rf-warn-soft: #fff6e5;
+  --rf-warn-ink: #a1480a;
+  --rf-warn-solid: #f59e0b;
+  --rf-warn-line: #fadf9e;
+
+  --rf-success-soft: #e8f8f0;
+  --rf-success-ink: #047857;
+  --rf-success-solid: #10b981;
+  --rf-success-line: #b5ecd3;
+
+  --rf-done-soft: #d5f5e6;
+  --rf-done-ink: #065f46;
+  --rf-done-solid: #047857;
+  --rf-done-line: #95dfbe;
+
+  --rf-danger-soft: #fff0f2;
+  --rf-danger-ink: #be123c;
+  --rf-danger-solid: #f43f5e;
+  --rf-danger-line: #fbcdd5;
+
+  --rf-shadow-card: 0 1px 2px rgb(15 23 42 / 0.05);
+  --rf-shadow-overlay: 0 12px 32px rgb(15 23 42 / 0.16);
+  --rf-backdrop: rgb(15 23 42 / 0.4);
+  /* Полупрозрачные панели: шапка и нижнее меню, сквозь которые видно прокручиваемый контент. */
+  --rf-glass: rgb(255 255 255 / 0.82);
+
+  /*
+    Пара серий графика — проверена валидатором палитры для каждой темы отдельно,
+    а не перевёрнута автоматически. Светлая: ΔE 31 при дейтеранопии; тёмная: ΔE 20.
+  */
+  --rf-chart-1: #4f46e5;
+  --rf-chart-2: #10b981;
+  --rf-chart-grid: #e8ebf1;
+  --rf-chart-cursor: #9aa1b4;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --rf-canvas: #0b0d13;
+  --rf-surface: #12151e;
+  --rf-surface-2: #191d29;
+  --rf-surface-3: #232838;
+  --rf-line: #232838;
+  --rf-line-strong: #353c52;
+  --rf-ink: #e8eaf2;
+  --rf-ink-2: #a6adc2;
+  --rf-ink-3: #848ca6;
+
+  /* На тёмном фоне кнопке нужен индиго посветлее, а тексту-ссылке — ещё светлее. */
+  --rf-accent: #5b5cf0;
+  --rf-accent-hover: #6d70f5;
+  --rf-accent-ink: #a5b0fc;
+  --rf-accent-soft: rgb(99 102 241 / 0.16);
+  --rf-accent-line: rgb(129 140 248 / 0.34);
+  --rf-on-accent: #ffffff;
+
+  --rf-neutral-soft: #1d2130;
+  --rf-neutral-ink: #b4bacb;
+  --rf-neutral-solid: #7d859c;
+  --rf-neutral-line: #2c3245;
+
+  --rf-info-soft: rgb(14 165 233 / 0.14);
+  --rf-info-ink: #7dd3fc;
+  --rf-info-solid: #38bdf8;
+  --rf-info-line: rgb(56 189 248 / 0.3);
+
+  --rf-warn-soft: rgb(245 158 11 / 0.13);
+  --rf-warn-ink: #fcd34d;
+  --rf-warn-solid: #fbbf24;
+  --rf-warn-line: rgb(251 191 36 / 0.3);
+
+  --rf-success-soft: rgb(16 185 129 / 0.13);
+  --rf-success-ink: #6ee7b7;
+  --rf-success-solid: #34d399;
+  --rf-success-line: rgb(52 211 153 / 0.3);
+
+  --rf-done-soft: rgb(16 185 129 / 0.24);
+  --rf-done-ink: #a7f3d0;
+  --rf-done-solid: #10b981;
+  --rf-done-line: rgb(16 185 129 / 0.45);
+
+  --rf-danger-soft: rgb(244 63 94 / 0.14);
+  --rf-danger-ink: #fda4af;
+  --rf-danger-solid: #fb7185;
+  --rf-danger-line: rgb(251 113 133 / 0.3);
+
+  --rf-shadow-card: 0 0 0 1px rgb(0 0 0 / 0);
+  --rf-shadow-overlay: 0 16px 40px rgb(0 0 0 / 0.55);
+  --rf-backdrop: rgb(2 4 10 / 0.64);
+  --rf-glass: rgb(18 21 30 / 0.8);
+
+  --rf-chart-1: #818cf8;
+  --rf-chart-2: #10b981;
+  --rf-chart-grid: #222736;
+  --rf-chart-cursor: #59617a;
 }
 
 @layer base {
   html {
-    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-canvas text-ink antialiased;
     font-family: var(--font-sans);
+    /* Тема переключается без вспышки: фон и текст плавно перетекают вслед за токенами. */
+    transition:
+      background-color 200ms var(--ease-app),
+      color 200ms var(--ease-app);
   }
 
   h1,
@@ -40,12 +257,24 @@
   h3,
   h4 {
     font-family: var(--font-display);
-    @apply tracking-tight text-slate-900;
+    @apply tracking-tight text-ink;
+  }
+
+  ::selection {
+    @apply bg-accent-soft text-ink;
   }
 
   /* Видимый фокус на клавиатуре — обязателен, а не по желанию. */
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand-600;
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
+  /* Кнопки и ссылки не ждут двойного тапа для зума — отклик на касание мгновенный. */
+  a,
+  button,
+  label,
+  [role='tab'] {
+    touch-action: manipulation;
   }
 
   /* Числа в таблицах не должны «плясать» при обновлении. */
@@ -56,16 +285,99 @@
 
 @layer components {
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-[var(--shadow-card)];
+    @apply rounded-2xl border border-line bg-surface shadow-card;
+  }
+
+  /* Поле ввода. На телефоне 16px обязательно: меньший кегль iOS встречает автозумом. */
+  .control {
+    @apply h-11 w-full rounded-xl border border-line bg-surface px-3.5 text-base text-ink transition-colors;
+    @apply placeholder:text-ink-3 hover:border-line-strong disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-ink-3;
+    @apply focus:border-accent focus:ring-4 focus:ring-accent/15 focus:outline-none;
+    @apply sm:h-10 sm:text-sm;
+  }
+
+  .control[aria-invalid='true'] {
+    @apply border-danger-solid focus:ring-danger-solid/15;
   }
 
   .field-label {
-    @apply mb-1.5 block text-sm font-medium text-slate-700;
+    @apply mb-1.5 block text-sm font-medium text-ink-2;
   }
 
   .field-error {
-    @apply mt-1.5 text-sm text-rose-600;
+    @apply mt-1.5 text-sm text-danger-ink;
   }
+
+  .field-hint {
+    @apply mt-1.5 text-sm text-ink-3;
+  }
+
+  /* Тактильный отклик: всё, что нажимается пальцем, чуть проседает. */
+  .pressable {
+    @apply transition-transform duration-150 ease-[var(--ease-app)] active:scale-[0.98];
+  }
+
+  /* Вторичный заголовок секции внутри карточки. */
+  .section-title {
+    @apply font-display text-base font-semibold text-ink;
+  }
+
+  .eyebrow {
+    @apply text-xs font-medium tracking-wide text-ink-3 uppercase;
+  }
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Переходы между экранами: вглубь — справа, назад — слева, между вкладками — растворением. */
+.page-forward-enter-active,
+.page-forward-leave-active,
+.page-back-enter-active,
+.page-back-leave-active,
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition:
+    opacity 180ms var(--ease-app),
+    transform 220ms var(--ease-app);
+}
+
+.page-forward-enter-from {
+  opacity: 0;
+  transform: translateX(24px);
+}
+
+.page-forward-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+.page-back-enter-from {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+
+.page-back-leave-to {
+  opacity: 0;
+  transform: translateX(12px);
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -73,6 +385,7 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

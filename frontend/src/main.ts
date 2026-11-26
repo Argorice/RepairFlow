@@ -1,6 +1,8 @@
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import { setSessionExpiredHandler } from '@/api/client'
+import { t } from '@/i18n'
+import '@/lib/theme'
 import { router } from '@/router'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toasts'
@@ -20,7 +22,7 @@ setSessionExpiredHandler(() => {
 
   if (auth.isAuthenticated) {
     auth.clear()
-    toasts.info('Сессия истекла, войдите заново.')
+    toasts.info(t('auth.sessionExpired'))
   }
 
   if (router.currentRoute.value.name !== 'login') {

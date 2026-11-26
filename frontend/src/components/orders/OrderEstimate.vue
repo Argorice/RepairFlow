@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { Package, Pencil, Plus, Receipt, Trash2, Wrench } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
 import { ApiError } from '@/api/client'
 import { estimateApi } from '@/api/endpoints'
 import { OrderItemType, type EstimateDto, type OrderItemDto } from '@/api/types'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
-import AppSelect from '@/components/ui/AppSelect.vue'
+import AppModal from '@/components/ui/AppModal.vue'
+import AppSegmented from '@/components/ui/AppSegmented.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonBlock from '@/components/ui/SkeletonBlock.vue'
-import { formatMoney } from '@/lib/format'
+import { t } from '@/i18n'
+import { formatMoney, formatNumber } from '@/lib/format'
+import { itemTypeLabel } from '@/lib/status'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toasts'
 
@@ -21,12 +25,15 @@ const toasts = useToastStore()
 const estimate = ref<EstimateDto | null>(null)
 const loading = ref(true)
 const saving = ref(false)
-const editingId = ref<string | null>(null)
 
-const typeOptions = [
-  { value: OrderItemType.Labor, label: 'Работа' },
-  { value: OrderItemType.Part, label: 'Запчасть' },
-]
+/** Форма позиции открывается шторкой: null — закрыта, 'new' — новая позиция, иначе id правки. */
+const editing = ref<'new' | string | null>(null)
+const formError = ref<ApiError | null>(null)
+
+const typeOptions = computed(() => [
+  { value: OrderItemType.Labor, label: itemTypeLabel(OrderItemType.Labor), icon: Wrench },
+  { value: OrderItemType.Part, label: itemTypeLabel(OrderItemType.Part), icon: Package },
+])
 
 const draft = ref({
   type: OrderItemType.Labor as OrderItemType,
@@ -36,96 +43,87 @@ const draft = ref({
 })
 
 async function load(): Promise<void> {
-  loading.value = true
-
   try {
     estimate.value = await estimateApi.get(props.orderId)
   } catch (error) {
-    toasts.error(error instanceof ApiError ? error.message : 'Не удалось загрузить смету.')
+    toasts.error(error instanceof ApiError ? error.message : t('estimate.loadFailed'))
   } finally {
     loading.value = false
   }
 }
 
-function resetDraft(): void {
+function openNew(): void {
   draft.value = { type: OrderItemType.Labor, name: '', quantity: '1', unitPrice: '' }
-  editingId.value = null
+  formError.value = null
+  editing.value = 'new'
 }
 
-function startEdit(item: OrderItemDto): void {
-  editingId.value = item.id
+function openEdit(item: OrderItemDto): void {
   draft.value = {
     type: item.type,
     name: item.name,
     quantity: String(item.quantity),
     unitPrice: String(item.unitPrice),
   }
+  formError.value = null
+  editing.value = item.id
 }
+
+/** Запятая и точка — обе допустимы: в русской раскладке десятичный разделитель — запятая. */
+const toNumber = (value: string): number => Number(value.replace(',', '.').replace(/\s/g, ''))
 
 async function save(): Promise<void> {
   saving.value = true
+  formError.value = null
 
   const payload = {
     type: draft.value.type,
     name: draft.value.name,
-    quantity: Number(draft.value.quantity.replace(',', '.')),
-    unitPrice: Number(draft.value.unitPrice.replace(',', '.')),
+    quantity: toNumber(draft.value.quantity),
+    unitPrice: toNumber(draft.value.unitPrice),
   }
 
   try {
-    if (editingId.value) {
-      await estimateApi.update(props.orderId, editingId.value, payload)
+    if (editing.value && editing.value !== 'new') {
+      await estimateApi.update(props.orderId, editing.value, payload)
     } else {
       await estimateApi.add(props.orderId, payload)
     }
 
-    resetDraft()
+    editing.value = null
     await load()
     emit('changed')
   } catch (error) {
-    toasts.error(error instanceof ApiError ? error.message : 'Не удалось сохранить позицию.')
+    formError.value = error instanceof ApiError ? error : null
+    toasts.error(formError.value?.message ?? t('estimate.saveFailed'))
   } finally {
     saving.value = false
+  }
+}
+
+const editingItem = computed(() =>
+  editing.value && editing.value !== 'new'
+    ? (estimate.value?.items.find((item) => item.id === editing.value) ?? null)
+    : null,
+)
+
+async function removeEditing(): Promise<void> {
+  const item = editingItem.value
+  editing.value = null
+
+  if (item) {
+    await remove(item)
   }
 }
 
 async function remove(item: OrderItemDto): Promise<void> {
   try {
     await estimateApi.remove(props.orderId, item.id)
+    toasts.info(t('estimate.removed', { name: item.name }))
     await load()
     emit('changed')
   } catch (error) {
-    toasts.error(error instanceof ApiError ? error.message : 'Не удалось удалить позицию.')
-  }
-}
-
-async function approve(): Promise<void> {
-  saving.value = true
-
-  try {
-    await estimateApi.approve(props.orderId)
-    toasts.success('Смета подтверждена, заявка в работе')
-    await load()
-    emit('changed')
-  } catch (error) {
-    toasts.error(error instanceof ApiError ? error.message : 'Не удалось подтвердить смету.')
-  } finally {
-    saving.value = false
-  }
-}
-
-async function reject(): Promise<void> {
-  saving.value = true
-
-  try {
-    await estimateApi.reject(props.orderId)
-    toasts.info('Вы отказались от ремонта')
-    await load()
-    emit('changed')
-  } catch (error) {
-    toasts.error(error instanceof ApiError ? error.message : 'Не удалось отклонить смету.')
-  } finally {
-    saving.value = false
+    toasts.error(error instanceof ApiError ? error.message : t('estimate.removeFailed'))
   }
 }
 
@@ -135,114 +133,158 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-5">
     <SkeletonBlock v-if="loading" :lines="4" />
 
     <template v-else-if="estimate">
-      <!-- Решение клиента по смете — самое важное действие на этой вкладке -->
+      <!--
+        Решение клиента по смете. Кнопки «подтвердить» и «отказаться» живут в панели действий
+        карточки — одна пара на экран, а не две одинаковые в разных местах.
+      -->
       <div
         v-if="estimate.awaitingApproval && auth.isClient"
-        class="rounded-xl border border-amber-200 bg-amber-50 p-4"
+        class="rounded-2xl bg-warn-soft p-4 ring-1 ring-warn-line ring-inset sm:p-5"
       >
-        <p class="font-medium text-amber-900">Смета готова и ждёт вашего решения</p>
-        <p class="mt-1 text-sm text-amber-800">
-          Итого к оплате {{ formatMoney(estimate.total, true) }}. Подтвердите — и мастер начнёт ремонт.
+        <p class="font-semibold text-warn-ink">{{ t('estimate.decisionTitle') }}</p>
+        <p class="mt-1 text-sm text-warn-ink/90">{{ t('estimate.decisionText') }}</p>
+        <p class="mt-3 font-display text-3xl font-bold text-ink tabular">
+          {{ formatMoney(estimate.total, true) }}
         </p>
-
-        <div class="mt-4 flex flex-wrap gap-3">
-          <AppButton :loading="saving" @click="approve">Подтвердить смету</AppButton>
-          <AppButton variant="secondary" :disabled="saving" @click="reject">Отказаться от ремонта</AppButton>
-        </div>
       </div>
 
-      <div
+      <p
         v-else-if="estimate.awaitingApproval"
-        class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        class="rounded-2xl bg-warn-soft px-4 py-3 text-sm text-warn-ink ring-1 ring-warn-line ring-inset"
       >
-        Смета отправлена клиенту и ждёт подтверждения.
-      </div>
+        {{ t('estimate.sentToClient') }}
+      </p>
 
       <EmptyState
         v-if="estimate.items.length === 0"
-        title="Смета пустая"
-        :description="
-          estimate.isEditable
-            ? 'Добавьте работы и запчасти — после этого заявку можно отправить на согласование.'
-            : 'Мастер ещё не добавил ни одной позиции.'
-        "
-      />
+        :icon="Receipt"
+        :title="t('estimate.emptyTitle')"
+        :description="estimate.isEditable ? t('estimate.emptyEditable') : t('estimate.emptyReadonly')"
+        compact
+      >
+        <AppButton v-if="estimate.isEditable" variant="soft" :icon="Plus" @click="openNew">
+          {{ t('estimate.addItem') }}
+        </AppButton>
+      </EmptyState>
 
-      <div v-else class="overflow-hidden rounded-xl border border-slate-200">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th class="px-4 py-2 font-medium">Позиция</th>
-              <th class="px-4 py-2 font-medium">Тип</th>
-              <th class="px-4 py-2 text-right font-medium">Кол-во</th>
-              <th class="px-4 py-2 text-right font-medium">Цена</th>
-              <th class="px-4 py-2 text-right font-medium">Сумма</th>
-              <th v-if="estimate.isEditable" class="px-4 py-2" />
-            </tr>
-          </thead>
+      <template v-else>
+        <!-- Строка сметы целиком — цель касания: открывает правку, а удаление живёт внутри шторки -->
+        <ul class="divide-y divide-line overflow-hidden rounded-2xl ring-1 ring-line ring-inset">
+          <li
+            v-for="item in estimate.items"
+            :key="item.id"
+            class="flex items-center gap-3 px-4 py-3"
+            :class="estimate.isEditable ? 'cursor-pointer transition-colors hover:bg-surface-2 active:bg-surface-2' : ''"
+            @click="estimate.isEditable && openEdit(item)"
+          >
+            <span
+              class="flex size-9 shrink-0 items-center justify-center rounded-xl"
+              :class="item.type === OrderItemType.Part ? 'bg-info-soft text-info-ink' : 'bg-accent-soft text-accent-ink'"
+              :title="itemTypeLabel(item.type)"
+            >
+              <Package v-if="item.type === OrderItemType.Part" class="size-[18px]" aria-hidden="true" />
+              <Wrench v-else class="size-[18px]" aria-hidden="true" />
+            </span>
 
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="item in estimate.items" :key="item.id">
-              <td class="px-4 py-2 text-slate-900">{{ item.name }}</td>
-              <td class="px-4 py-2 text-slate-500">{{ item.typeLabel }}</td>
-              <td class="px-4 py-2 text-right tabular">{{ item.quantity }}</td>
-              <td class="px-4 py-2 text-right tabular">{{ formatMoney(item.unitPrice, true) }}</td>
-              <td class="px-4 py-2 text-right font-medium tabular">{{ formatMoney(item.total, true) }}</td>
-              <td v-if="estimate.isEditable" class="px-4 py-2 text-right whitespace-nowrap">
-                <button class="text-xs text-slate-500 hover:text-brand-600" @click="startEdit(item)">
-                  Изменить
-                </button>
-                <button class="ml-3 text-xs text-slate-500 hover:text-rose-600" @click="remove(item)">
-                  Удалить
-                </button>
-              </td>
-            </tr>
-          </tbody>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium text-ink">{{ item.name }}</p>
+              <p class="truncate text-xs text-ink-3 tabular">
+                {{ itemTypeLabel(item.type) }} · {{ formatNumber(item.quantity) }} × {{ formatMoney(item.unitPrice, true) }}
+              </p>
+            </div>
 
-          <tfoot class="bg-slate-50 text-sm">
-            <tr>
-              <td colspan="4" class="px-4 py-2 text-right text-slate-500">Работы</td>
-              <td class="px-4 py-2 text-right tabular">{{ formatMoney(estimate.laborTotal, true) }}</td>
-              <td v-if="estimate.isEditable" />
-            </tr>
-            <tr>
-              <td colspan="4" class="px-4 py-2 text-right text-slate-500">Запчасти</td>
-              <td class="px-4 py-2 text-right tabular">{{ formatMoney(estimate.partsTotal, true) }}</td>
-              <td v-if="estimate.isEditable" />
-            </tr>
-            <tr class="border-t border-slate-200">
-              <td colspan="4" class="px-4 py-3 text-right font-medium text-slate-900">Итого</td>
-              <td class="px-4 py-3 text-right font-display text-base font-bold tabular">
-                {{ formatMoney(estimate.total, true) }}
-              </td>
-              <td v-if="estimate.isEditable" />
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+            <p class="shrink-0 text-sm font-semibold text-ink tabular">{{ formatMoney(item.total, true) }}</p>
 
-      <!-- Форма позиции -->
-      <form v-if="estimate.isEditable" class="rounded-xl border border-slate-200 p-4" @submit.prevent="save">
-        <p class="mb-3 font-medium text-slate-900">
-          {{ editingId ? 'Изменить позицию' : 'Добавить позицию' }}
-        </p>
+            <div v-if="estimate.isEditable" class="-mr-2 hidden shrink-0 sm:flex" @click.stop>
+              <AppButton
+                variant="ghost"
+                size="sm"
+                square
+                :icon="Pencil"
+                :label="t('common.edit')"
+                @click="openEdit(item)"
+              />
+              <AppButton
+                variant="ghost"
+                size="sm"
+                square
+                :icon="Trash2"
+                :label="t('common.delete')"
+                @click="remove(item)"
+              />
+            </div>
+          </li>
+        </ul>
 
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <AppSelect v-model="draft.type" label="Тип" :options="typeOptions" />
-          <AppInput v-model="draft.name" label="Название" placeholder="Замена дисплея" required />
-          <AppInput v-model="draft.quantity" label="Количество" placeholder="1" required />
-          <AppInput v-model="draft.unitPrice" label="Цена за единицу" placeholder="2200" required />
-        </div>
+        <dl class="space-y-2 rounded-2xl bg-surface-2 px-4 py-4 text-sm">
+          <div class="flex justify-between">
+            <dt class="text-ink-2">{{ t('estimate.labor') }}</dt>
+            <dd class="text-ink tabular">{{ formatMoney(estimate.laborTotal, true) }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-ink-2">{{ t('estimate.parts') }}</dt>
+            <dd class="text-ink tabular">{{ formatMoney(estimate.partsTotal, true) }}</dd>
+          </div>
+          <div class="flex items-baseline justify-between border-t border-line pt-3">
+            <dt class="font-medium text-ink">{{ t('estimate.total') }}</dt>
+            <dd class="font-display text-xl font-bold text-ink tabular">{{ formatMoney(estimate.total, true) }}</dd>
+          </div>
+        </dl>
 
-        <div class="mt-4 flex justify-end gap-3">
-          <AppButton v-if="editingId" variant="ghost" @click="resetDraft">Отмена</AppButton>
-          <AppButton type="submit" :loading="saving">{{ editingId ? 'Сохранить' : 'Добавить' }}</AppButton>
+        <AppButton v-if="estimate.isEditable" variant="soft" :icon="Plus" block @click="openNew">
+          {{ t('estimate.addItem') }}
+        </AppButton>
+      </template>
+    </template>
+
+    <AppModal
+      v-if="editing"
+      :title="editing === 'new' ? t('estimate.addItem') : t('estimate.editItem')"
+      @close="editing = null"
+    >
+      <form id="estimate-item" class="space-y-4" @submit.prevent="save">
+        <AppSegmented v-model="draft.type" :options="typeOptions" :label="t('estimate.type')" block />
+
+        <AppInput
+          v-model="draft.name"
+          :label="t('estimate.name')"
+          :placeholder="draft.type === OrderItemType.Part ? t('estimate.namePartHint') : t('estimate.nameLaborHint')"
+          required
+          :error="formError?.fieldError('name')"
+        />
+
+        <div class="grid grid-cols-2 gap-3">
+          <AppInput
+            v-model="draft.quantity"
+            :label="t('estimate.quantity')"
+            inputmode="decimal"
+            required
+            :error="formError?.fieldError('quantity')"
+          />
+          <AppInput
+            v-model="draft.unitPrice"
+            :label="t('estimate.unitPrice')"
+            inputmode="decimal"
+            placeholder="60"
+            required
+            :error="formError?.fieldError('unitPrice')"
+          />
         </div>
       </form>
-    </template>
+
+      <template #actions>
+        <AppButton v-if="editingItem" variant="danger" :icon="Trash2" class="sm:mr-auto" @click="removeEditing">
+          {{ t('common.delete') }}
+        </AppButton>
+        <AppButton variant="secondary" @click="editing = null">{{ t('common.cancel') }}</AppButton>
+        <AppButton type="submit" form="estimate-item" :loading="saving">
+          {{ editing === 'new' ? t('common.add') : t('common.save') }}
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

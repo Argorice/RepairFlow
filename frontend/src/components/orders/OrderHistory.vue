@@ -1,32 +1,47 @@
 <script setup lang="ts">
+import { History } from '@lucide/vue'
 import type { OrderStatusHistoryDto } from '@/api/types'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { t } from '@/i18n'
 import { formatDateTime } from '@/lib/format'
-import { statusStyle } from '@/lib/status'
+import { statusLabel, statusStyle } from '@/lib/status'
 
 defineProps<{ history: OrderStatusHistoryDto[] }>()
 </script>
 
 <template>
-  <EmptyState v-if="history.length === 0" title="История пуста" />
+  <EmptyState v-if="history.length === 0" :icon="History" :title="t('history.empty')" compact />
 
-  <ol v-else class="space-y-5">
-    <li v-for="entry in history" :key="entry.id" class="relative flex gap-4 pl-1">
-      <span class="mt-1 size-3 shrink-0 rounded-full" :class="statusStyle(entry.toStatus).solid" />
+  <!-- Лента: вертикальная линия связывает события, точка окрашена в цвет нового статуса -->
+  <ol v-else class="relative">
+    <li v-for="(entry, index) in history" :key="entry.id" class="relative flex gap-4 pb-6 last:pb-0">
+      <span
+        v-if="index < history.length - 1"
+        class="absolute top-5 bottom-0 left-[7px] w-px bg-line"
+        aria-hidden="true"
+      />
+      <span
+        class="relative mt-1.5 size-[15px] shrink-0 rounded-full ring-4 ring-surface"
+        :class="statusStyle(entry.toStatus).solid"
+        aria-hidden="true"
+      />
 
-      <div class="min-w-0 flex-1 border-b border-slate-100 pb-4">
-        <p class="text-sm text-slate-900">
-          <template v-if="entry.fromStatusLabel">
-            {{ entry.fromStatusLabel }} → <strong class="font-medium">{{ entry.toStatusLabel }}</strong>
+      <div class="min-w-0 flex-1">
+        <p class="text-sm text-ink">
+          <template v-if="entry.fromStatus">
+            <span class="text-ink-2">{{ statusLabel(entry.fromStatus) }}</span>
+            <span class="mx-1.5 text-ink-3" aria-hidden="true">→</span>
+            <span class="sr-only">{{ t('history.to') }}</span>
+            <strong class="font-semibold">{{ statusLabel(entry.toStatus) }}</strong>
           </template>
-          <template v-else>
-            <strong class="font-medium">{{ entry.toStatusLabel }}</strong>
-          </template>
+          <strong v-else class="font-semibold">{{ t('history.created') }}</strong>
         </p>
 
-        <p v-if="entry.comment" class="mt-1 text-sm text-slate-600">{{ entry.comment }}</p>
+        <p v-if="entry.comment" class="mt-1.5 rounded-xl bg-surface-2 px-3 py-2 text-sm text-ink-2">
+          {{ entry.comment }}
+        </p>
 
-        <p class="mt-1 text-xs text-slate-400 tabular">
+        <p class="mt-1.5 text-xs text-ink-3 tabular">
           {{ entry.changedBy.fullName }} · {{ formatDateTime(entry.changedAt) }}
         </p>
       </div>

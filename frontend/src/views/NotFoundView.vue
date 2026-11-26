@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import BrandMark from '@/components/layout/BrandMark.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import { t } from '@/i18n'
 
 const router = useRouter()
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
-    <p class="font-display text-6xl font-bold text-brand-600">404</p>
-    <h1 class="font-display text-xl font-semibold">Такой страницы нет</h1>
-    <p class="max-w-sm text-sm text-slate-500">
-      Возможно, ссылка устарела или заявку уже закрыли.
-    </p>
-    <AppButton @click="router.push({ name: 'orders' })">К списку заявок</AppButton>
+  <div class="flex min-h-dvh flex-col items-center justify-center gap-4 bg-canvas px-6 text-center">
+    <BrandMark compact />
+    <p class="font-display text-7xl font-extrabold text-accent-ink">404</p>
+    <h1 class="font-display text-xl font-semibold">{{ t('notFound.title') }}</h1>
+    <p class="max-w-sm text-sm text-ink-2">{{ t('notFound.text') }}</p>
+    <AppButton size="lg" @click="router.push({ name: 'orders' })">{{ t('notFound.back') }}</AppButton>
   </div>
 </template>

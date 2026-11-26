@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { FileText, ImagePlus, X } from '@lucide/vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { attachmentsApi, ordersApi } from '@/api/endpoints'
+import PageHeader from '@/components/layout/PageHeader.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppChip from '@/components/ui/AppChip.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
+import { t, type MessageKey } from '@/i18n'
 import { formatFileSize } from '@/lib/format'
 import { useToastStore } from '@/stores/toasts'
 
@@ -20,11 +24,27 @@ const form = ref({
   problemDescription: '',
 })
 
-const files = ref<File[]>([])
+/** Самые частые типы устройств — одним касанием. Поле остаётся свободным: принесут что угодно. */
+const DEVICE_TYPES: MessageKey[] = [
+  'create.devices.laptop',
+  'create.devices.phone',
+  'create.devices.tablet',
+  'create.devices.tv',
+  'create.devices.console',
+  'create.devices.printer',
+]
+
+interface PickedFile {
+  file: File
+  preview: string | null
+}
+
+const files = ref<PickedFile[]>([])
 const loading = ref(false)
 const error = ref<ApiError | null>(null)
 
 const MAX_SIZE = 10 * 1024 * 1024
+const MAX_FILES = 10
 const MIN_DESCRIPTION = 10
 
 /**
@@ -38,23 +58,23 @@ function validate(): boolean {
   const found: Record<string, string> = {}
 
   if (!form.value.deviceType.trim()) {
-    found.deviceType = 'Укажите тип устройства.'
+    found.deviceType = t('create.errors.deviceType')
   }
 
   if (!form.value.brand.trim()) {
-    found.brand = 'Укажите производителя.'
+    found.brand = t('create.errors.brand')
   }
 
   if (!form.value.model.trim()) {
-    found.model = 'Укажите модель.'
+    found.model = t('create.errors.model')
   }
 
   const description = form.value.problemDescription.trim()
 
   if (!description) {
-    found.problemDescription = 'Опишите, что случилось.'
+    found.problemDescription = t('create.errors.problemEmpty')
   } else if (description.length < MIN_DESCRIPTION) {
-    found.problemDescription = `Слишком коротко — нужно хотя бы ${MIN_DESCRIPTION} символов.`
+    found.problemDescription = t('create.errors.problemShort', { count: MIN_DESCRIPTION })
   }
 
   localErrors.value = found
@@ -77,28 +97,46 @@ watch(
   { deep: true },
 )
 
+const descriptionLength = computed(() => form.value.problemDescription.trim().length)
+
 function onFilesPicked(event: Event): void {
   const input = event.target as HTMLInputElement
   const picked = Array.from(input.files ?? [])
+  input.value = ''
 
   const tooBig = picked.filter((file) => file.size > MAX_SIZE)
   if (tooBig.length > 0) {
-    toasts.error(`Файл больше 10 МБ: ${tooBig.map((file) => file.name).join(', ')}`)
+    toasts.error(t('create.fileTooBig', { names: tooBig.map((file) => file.name).join(', ') }))
   }
 
-  files.value = [...files.value, ...picked.filter((file) => file.size <= MAX_SIZE)].slice(0, 10)
-  input.value = ''
+  const accepted = picked
+    .filter((file) => file.size <= MAX_SIZE)
+    .map((file) => ({
+      file,
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+    }))
+
+  files.value = [...files.value, ...accepted].slice(0, MAX_FILES)
 }
 
 function removeFile(index: number): void {
-  files.value = files.value.filter((_, i) => i !== index)
+  const [removed] = files.value.splice(index, 1)
+  if (removed?.preview) {
+    URL.revokeObjectURL(removed.preview)
+  }
 }
 
 async function submit(): Promise<void> {
   submitted.value = true
 
   if (!validate()) {
-    toasts.error('Проверьте подсвеченные поля.')
+    toasts.error(t('create.checkFields'))
+
+    // Ведём прямо к первому полю с ошибкой — на телефоне оно обычно за краем экрана.
+    await nextTick()
+    const invalid = document.querySelector<HTMLElement>('[aria-invalid="true"]')
+    invalid?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    invalid?.focus({ preventScroll: true })
     return
   }
 
@@ -107,120 +145,170 @@ async function submit(): Promise<void> {
 
   try {
     const order = await ordersApi.create({
-      deviceType: form.value.deviceType,
-      brand: form.value.brand,
-      model: form.value.model,
-      serialNumber: form.value.serialNumber || null,
-      problemDescription: form.value.problemDescription,
+      deviceType: form.value.deviceType.trim(),
+      brand: form.value.brand.trim(),
+      model: form.value.model.trim(),
+      serialNumber: form.value.serialNumber.trim() || null,
+      problemDescription: form.value.problemDescription.trim(),
     })
 
     // Файлы прикладываются уже к созданной заявке — иначе их некуда положить.
-    for (const file of files.value) {
+    for (const { file } of files.value) {
       try {
         await attachmentsApi.upload(order.id, file)
       } catch {
-        toasts.error(`Не удалось загрузить файл ${file.name}`)
+        toasts.error(t('files.uploadFailed', { name: file.name }))
       }
     }
 
-    toasts.success(`Заявка ${order.number} создана`)
-    await router.push({ name: 'order-details', params: { id: order.id } })
+    toasts.success(t('create.created', { number: order.number }))
+    await router.replace({ name: 'order-details', params: { id: order.id } })
   } catch (exception) {
     error.value = exception instanceof ApiError ? exception : null
-    toasts.error(error.value?.message ?? 'Не удалось создать заявку.')
+    toasts.error(error.value?.message ?? t('create.failed'))
   } finally {
     loading.value = false
   }
 }
+
+onBeforeUnmount(() => {
+  for (const item of files.value) {
+    if (item.preview) {
+      URL.revokeObjectURL(item.preview)
+    }
+  }
+})
 </script>
 
 <template>
-  <div class="mx-auto max-w-2xl space-y-6">
-    <header>
-      <h1 class="font-display text-2xl font-bold">Новая заявка</h1>
-      <p class="mt-1 text-sm text-slate-500">
-        Опишите поломку своими словами — мастер уточнит детали в комментариях.
-      </p>
-    </header>
+  <div class="mx-auto max-w-2xl space-y-5">
+    <PageHeader :title="t('create.title')" :description="t('create.subtitle')" />
 
-    <form class="card space-y-4 p-6" @submit.prevent="submit">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <AppInput
-          v-model="form.deviceType"
-          label="Тип устройства"
-          placeholder="Ноутбук, смартфон, телевизор…"
-          required
-          :error="errorFor('deviceType')"
-        />
-        <AppInput
-          v-model="form.brand"
-          label="Производитель"
-          placeholder="Lenovo"
-          required
-          :error="errorFor('brand')"
-        />
-        <AppInput
-          v-model="form.model"
-          label="Модель"
-          placeholder="ThinkPad T14"
-          required
-          :error="errorFor('model')"
-        />
+    <form class="space-y-4" novalidate @submit.prevent="submit">
+      <section class="card space-y-4 p-4 sm:p-6">
+        <h2 class="section-title">{{ t('create.deviceSection') }}</h2>
+
+        <div>
+          <AppInput
+            v-model="form.deviceType"
+            :label="t('create.deviceType')"
+            :placeholder="t('create.deviceTypePlaceholder')"
+            required
+            :error="errorFor('deviceType')"
+          />
+          <div class="-mx-4 mt-2.5 flex gap-2 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
+            <AppChip
+              v-for="key in DEVICE_TYPES"
+              :key="key"
+              :active="form.deviceType === t(key)"
+              @click="form.deviceType = t(key)"
+            >
+              {{ t(key) }}
+            </AppChip>
+          </div>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <AppInput
+            v-model="form.brand"
+            :label="t('create.brand')"
+            placeholder="Lenovo"
+            required
+            :error="errorFor('brand')"
+          />
+          <AppInput
+            v-model="form.model"
+            :label="t('create.model')"
+            placeholder="ThinkPad T14"
+            required
+            :error="errorFor('model')"
+          />
+        </div>
+
         <AppInput
           v-model="form.serialNumber"
-          label="Серийный номер"
-          hint="Необязательно"
+          :label="t('create.serial')"
+          :hint="t('common.optional')"
           :error="errorFor('serialNumber')"
         />
-      </div>
+      </section>
 
-      <AppTextarea
-        v-model="form.problemDescription"
-        label="Что случилось"
-        placeholder="После падения не включается, при зарядке греется левый угол…"
-        :rows="5"
-        required
-        hint="Хотя бы одно предложение — чем подробнее, тем быстрее диагностика"
-        :error="errorFor('problemDescription')"
-      />
-
-      <div>
-        <span class="field-label">Фотографии проблемы</span>
-
-        <label
-          class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 px-6 py-8 text-center transition-colors hover:border-brand-200 hover:bg-brand-50/40"
-        >
-          <svg class="size-6 text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M12 16V4m0 0L8 8m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
-          <span class="text-sm text-slate-600">Перетащите или выберите файлы</span>
-          <span class="text-xs text-slate-400">JPG, PNG, WebP или PDF, до 10 МБ</span>
-          <input type="file" class="sr-only" multiple accept="image/*,.pdf" @change="onFilesPicked" />
-        </label>
-
-        <ul v-if="files.length" class="mt-3 space-y-2">
-          <li
-            v-for="(file, index) in files"
-            :key="`${file.name}-${index}`"
-            class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm"
+      <section class="card space-y-4 p-4 sm:p-6">
+        <div class="flex items-baseline justify-between gap-3">
+          <h2 class="section-title">{{ t('create.problemSection') }}</h2>
+          <span
+            class="text-xs tabular"
+            :class="descriptionLength >= MIN_DESCRIPTION ? 'text-success-ink' : 'text-ink-3'"
+            aria-live="polite"
           >
-            <span class="min-w-0 flex-1 truncate text-slate-700">{{ file.name }}</span>
-            <span class="text-xs text-slate-400 tabular">{{ formatFileSize(file.size) }}</span>
-            <button type="button" class="text-slate-400 hover:text-rose-600" @click="removeFile(index)">
-              Убрать
+            {{ descriptionLength }} / {{ MIN_DESCRIPTION }}+
+          </span>
+        </div>
+
+        <AppTextarea
+          v-model="form.problemDescription"
+          :aria-label="t('create.problemSection')"
+          :placeholder="t('create.problemPlaceholder')"
+          :rows="5"
+          required
+          :hint="t('create.problemHint')"
+          :error="errorFor('problemDescription')"
+        />
+      </section>
+
+      <section class="card space-y-4 p-4 sm:p-6">
+        <div>
+          <h2 class="section-title">{{ t('create.photosSection') }}</h2>
+          <p class="mt-0.5 text-sm text-ink-2">{{ t('create.photosHint') }}</p>
+        </div>
+
+        <ul v-if="files.length" class="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <li
+            v-for="(item, index) in files"
+            :key="`${item.file.name}-${index}`"
+            class="group relative aspect-square overflow-hidden rounded-xl bg-surface-2 ring-1 ring-line ring-inset"
+          >
+            <img v-if="item.preview" :src="item.preview" :alt="item.file.name" class="h-full w-full object-cover" />
+            <div v-else class="flex h-full flex-col items-center justify-center gap-1 p-2 text-center">
+              <FileText class="size-6 text-ink-3" aria-hidden="true" />
+              <span class="w-full truncate text-[11px] text-ink-2">{{ item.file.name }}</span>
+            </div>
+
+            <span class="absolute bottom-1 left-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] text-white tabular">
+              {{ formatFileSize(item.file.size) }}
+            </span>
+
+            <button
+              type="button"
+              class="pressable absolute top-1 right-1 flex size-7 items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/70"
+              :aria-label="t('create.removeFile', { name: item.file.name })"
+              @click="removeFile(index)"
+            >
+              <X class="size-4" aria-hidden="true" />
             </button>
           </li>
         </ul>
-      </div>
 
-      <div class="flex justify-end gap-3 pt-2">
-        <AppButton variant="secondary" @click="router.back()">Отмена</AppButton>
-        <AppButton type="submit" :loading="loading">Создать заявку</AppButton>
+        <label
+          v-if="files.length < MAX_FILES"
+          class="pressable flex cursor-pointer flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-line px-6 py-7 text-center transition-colors hover:border-accent-line hover:bg-accent-soft/50 focus-within:border-accent"
+        >
+          <ImagePlus class="size-6 text-accent-ink" aria-hidden="true" />
+          <span class="text-sm font-medium text-ink">{{ t('create.pickFiles') }}</span>
+          <span class="text-xs text-ink-3">{{ t('files.limits') }}</span>
+          <input type="file" class="sr-only" multiple accept="image/*,.pdf" @change="onFilesPicked" />
+        </label>
+      </section>
+
+      <div class="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end sm:gap-3">
+        <div class="hidden sm:block">
+          <AppButton variant="ghost" size="lg" @click="router.back()">
+            {{ t('common.cancel') }}
+          </AppButton>
+        </div>
+        <AppButton type="submit" size="lg" :loading="loading" class="w-full sm:w-auto">
+          {{ t('create.submit') }}
+        </AppButton>
       </div>
     </form>
   </div>

@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ArrowRight, Hammer, LayoutDashboard, Lock, Mail, Smartphone } from '@lucide/vue'
+import { onMounted, ref, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, apiBaseUrl } from '@/api/client'
 import { UserRole } from '@/api/types'
+import BrandMark from '@/components/layout/BrandMark.vue'
+import PreferenceToggles from '@/components/layout/PreferenceToggles.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppSegmented from '@/components/ui/AppSegmented.vue'
+import { t, type MessageKey } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toasts'
 
@@ -23,11 +28,13 @@ const loading = ref(false)
 const demoLoading = ref<UserRole | null>(null)
 const error = ref<ApiError | null>(null)
 
-const DEMO_ROLES: { role: UserRole; label: string; hint: string }[] = [
-  { role: UserRole.Client, label: 'Войти как клиент', hint: 'Свои заявки и согласование сметы' },
-  { role: UserRole.Technician, label: 'Войти как мастер', hint: 'Ремонт, смета, комментарии' },
-  { role: UserRole.Manager, label: 'Войти как менеджер', hint: 'Дашборд, назначения, пользователи' },
+const DEMO_ROLES: { role: UserRole; icon: Component; label: MessageKey; hint: MessageKey }[] = [
+  { role: UserRole.Client, icon: Smartphone, label: 'login.demoClient', hint: 'login.demoClientHint' },
+  { role: UserRole.Technician, icon: Hammer, label: 'login.demoTechnician', hint: 'login.demoTechnicianHint' },
+  { role: UserRole.Manager, icon: LayoutDashboard, label: 'login.demoManager', hint: 'login.demoManagerHint' },
 ]
+
+const FEATURES: MessageKey[] = ['login.feature1', 'login.feature2', 'login.feature3']
 
 async function go(): Promise<void> {
   const redirect = route.query.redirect
@@ -53,7 +60,7 @@ async function submit(): Promise<void> {
     await go()
   } catch (exception) {
     error.value = exception instanceof ApiError ? exception : null
-    toasts.error(error.value?.message ?? 'Не удалось войти.')
+    toasts.error(error.value?.message ?? t('login.failed'))
   } finally {
     loading.value = false
   }
@@ -84,7 +91,7 @@ async function loginAsDemo(role: UserRole): Promise<void> {
     await auth.loginAsDemo(role)
     await go()
   } catch (exception) {
-    toasts.error(exception instanceof ApiError ? exception.message : 'Демо-вход недоступен.')
+    toasts.error(exception instanceof ApiError ? exception.message : t('login.demoFailed'))
   } finally {
     demoLoading.value = null
   }
@@ -92,92 +99,109 @@ async function loginAsDemo(role: UserRole): Promise<void> {
 </script>
 
 <template>
-  <div class="grid min-h-screen lg:grid-cols-2">
+  <div class="min-h-dvh bg-canvas lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
     <!-- Левая половина: что это за система, за пять секунд чтения -->
-    <section class="hidden flex-col justify-between bg-brand-600 p-12 text-white lg:flex">
-      <p class="font-display text-2xl font-bold">RepairFlow</p>
+    <section
+      class="relative overflow-hidden bg-brand-600 px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-16 text-white lg:flex lg:flex-col lg:justify-between lg:p-12"
+    >
+      <!-- Фирменный узор: крупные полупрозрачные круги, плоско, без градиентов -->
+      <div class="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-white/[0.06]" aria-hidden="true" />
+      <div class="pointer-events-none absolute -bottom-32 -left-16 size-80 rounded-full bg-white/[0.05]" aria-hidden="true" />
 
-      <div class="max-w-md">
-        <h1 class="font-display text-4xl font-bold leading-tight">
-          Сервисный центр, в котором ничего не теряется
+      <div class="relative flex items-center justify-between">
+        <BrandMark inverted />
+        <PreferenceToggles inverted class="lg:hidden" />
+      </div>
+
+      <div class="relative mt-8 max-w-md lg:mt-0">
+        <h1 class="font-display text-[28px] leading-tight font-bold !text-white lg:text-[40px]">
+          {{ t('login.headline') }}
         </h1>
-        <p class="mt-4 text-brand-100">
-          Клиент видит статус ремонта, мастер ведёт смету, менеджер — загрузку мастерской.
-          Каждая смена статуса записана: кто, когда и почему.
+        <p class="mt-3 text-[15px] leading-relaxed text-brand-100 lg:mt-4 lg:text-base">
+          {{ t('login.lead') }}
         </p>
 
-        <ul class="mt-8 space-y-3 text-sm text-brand-100">
-          <li class="flex items-start gap-2">
-            <span class="mt-1.5 size-1.5 shrink-0 rounded-full bg-white" />
-            Согласование сметы онлайн — без звонков «ну что там?»
-          </li>
-          <li class="flex items-start gap-2">
-            <span class="mt-1.5 size-1.5 shrink-0 rounded-full bg-white" />
-            Три роли с разными правами и своей картиной мира
-          </li>
-          <li class="flex items-start gap-2">
-            <span class="mt-1.5 size-1.5 shrink-0 rounded-full bg-white" />
-            Живые обновления: карточка меняется сама
+        <ul class="mt-8 hidden space-y-3 text-sm text-brand-100 lg:block">
+          <li v-for="feature in FEATURES" :key="feature" class="flex items-start gap-2.5">
+            <span class="mt-1.5 size-1.5 shrink-0 rounded-full bg-white" aria-hidden="true" />
+            {{ t(feature) }}
           </li>
         </ul>
       </div>
 
-      <p class="text-sm text-brand-200">ASP.NET Core 10 · Vue 3 · PostgreSQL</p>
+      <p class="relative hidden text-sm text-brand-200 lg:block">ASP.NET Core 10 · Vue 3 · PostgreSQL · SignalR</p>
     </section>
 
-    <!-- Правая половина: вход -->
-    <section class="flex items-center justify-center px-4 py-12">
-      <div class="w-full max-w-sm">
-        <p class="font-display text-2xl font-bold text-brand-600 lg:hidden">RepairFlow</p>
+    <!-- Правая половина: вход. На телефоне — карточка, которая наезжает на синюю шапку -->
+    <section class="relative -mt-8 flex justify-center px-4 pb-[max(2rem,env(safe-area-inset-bottom))] lg:mt-0 lg:items-center lg:px-10 lg:py-12">
+      <div class="w-full max-w-md rounded-3xl bg-surface p-5 shadow-overlay sm:p-8 lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none">
+        <div class="mb-8 hidden justify-end lg:flex">
+          <PreferenceToggles />
+        </div>
 
-        <h2 class="mt-6 font-display text-2xl font-bold lg:mt-0">
-          {{ mode === 'login' ? 'Вход' : 'Регистрация' }}
-        </h2>
-        <p class="mt-1 text-sm text-slate-500">
-          {{
-            mode === 'login'
-              ? 'Посмотреть систему можно без регистрации'
-              : 'Регистрация создаёт аккаунт клиента'
-          }}
-        </p>
+        <h2 class="font-display text-xl font-bold">{{ t('login.demoTitle') }}</h2>
+        <p class="mt-1 text-sm text-ink-2">{{ t('login.demoSubtitle') }}</p>
 
         <!-- Главная кнопка демо: заказчик не станет ничего заполнять -->
-        <div class="mt-6 space-y-2">
-          <AppButton
+        <div class="mt-5 grid gap-2">
+          <button
             v-for="demo in DEMO_ROLES"
             :key="demo.role"
-            variant="secondary"
-            block
-            :loading="demoLoading === demo.role"
+            type="button"
+            class="pressable group flex items-center gap-3 rounded-2xl bg-surface px-3.5 py-3 text-left ring-1 ring-line transition-colors ring-inset hover:bg-surface-2 hover:ring-accent-line disabled:opacity-60"
             :disabled="demoLoading !== null"
+            :aria-busy="demoLoading === demo.role || undefined"
             @click="loginAsDemo(demo.role)"
           >
-            <span class="flex w-full items-center justify-between gap-3">
-              <span class="font-medium text-slate-900">{{ demo.label }}</span>
-              <span class="hidden text-xs text-slate-400 sm:inline">{{ demo.hint }}</span>
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
+              <component :is="demo.icon" class="size-5" aria-hidden="true" />
             </span>
-          </AppButton>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-semibold text-ink">{{ t(demo.label) }}</span>
+              <span class="block truncate text-xs text-ink-3">{{ t(demo.hint) }}</span>
+            </span>
+            <span
+              v-if="demoLoading === demo.role"
+              class="size-5 animate-spin rounded-full border-2 border-accent-line border-t-accent"
+              aria-hidden="true"
+            />
+            <ArrowRight
+              v-else
+              class="size-[18px] text-ink-3 transition-transform group-hover:translate-x-0.5 group-hover:text-accent-ink"
+              aria-hidden="true"
+            />
+          </button>
         </div>
 
         <p
           v-if="backendWaking"
-          class="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500"
+          class="mt-3 animate-fade-in rounded-xl bg-surface-2 px-3 py-2.5 text-xs leading-relaxed text-ink-2"
           role="status"
         >
-          Демо-сервер просыпается после простоя — первый вход может занять до минуты.
+          {{ t('login.waking') }}
         </p>
 
-        <div class="my-6 flex items-center gap-3 text-xs text-slate-400">
-          <span class="h-px flex-1 bg-slate-200" />
-          или по паролю
-          <span class="h-px flex-1 bg-slate-200" />
+        <div class="my-7 flex items-center gap-3 text-xs text-ink-3">
+          <span class="h-px flex-1 bg-line" />
+          {{ t('login.orWithPassword') }}
+          <span class="h-px flex-1 bg-line" />
         </div>
 
-        <form class="space-y-4" @submit.prevent="submit">
+        <AppSegmented
+          v-model="mode"
+          :label="t('login.mode')"
+          :options="[
+            { value: 'login', label: t('login.signIn') },
+            { value: 'register', label: t('login.register') },
+          ]"
+          block
+        />
+
+        <form class="mt-5 space-y-4" @submit.prevent="submit">
           <AppInput
             v-if="mode === 'register'"
             v-model="fullName"
-            label="Имя"
+            :label="t('fields.fullName')"
             required
             autocomplete="name"
             :error="error?.fieldError('fullName')"
@@ -185,47 +209,44 @@ async function loginAsDemo(role: UserRole): Promise<void> {
 
           <AppInput
             v-model="email"
-            label="Почта"
+            :label="t('fields.email')"
             type="email"
+            :icon="Mail"
             required
             autocomplete="email"
+            inputmode="email"
             placeholder="client@demo.io"
             :error="error?.fieldError('email')"
           />
 
           <AppInput
             v-model="password"
-            label="Пароль"
+            :label="t('fields.password')"
             type="password"
+            :icon="Lock"
             required
             :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
-            placeholder="demo1234"
+            :placeholder="mode === 'login' ? 'demo1234' : undefined"
+            :hint="mode === 'register' ? t('fields.passwordHint') : undefined"
             :error="error?.fieldError('password')"
           />
 
           <AppInput
             v-if="mode === 'register'"
             v-model="phone"
-            label="Телефон"
+            :label="t('fields.phone')"
             type="tel"
+            inputmode="tel"
             autocomplete="tel"
             :error="error?.fieldError('phone')"
           />
 
-          <AppButton type="submit" block :loading="loading">
-            {{ mode === 'login' ? 'Войти' : 'Зарегистрироваться' }}
+          <AppButton type="submit" size="lg" block :loading="loading">
+            {{ mode === 'login' ? t('login.signIn') : t('login.createAccount') }}
           </AppButton>
-        </form>
 
-        <p class="mt-6 text-center text-sm text-slate-500">
-          {{ mode === 'login' ? 'Ещё нет аккаунта?' : 'Уже есть аккаунт?' }}
-          <button
-            class="font-medium text-brand-600 hover:text-brand-700"
-            @click="mode = mode === 'login' ? 'register' : 'login'"
-          >
-            {{ mode === 'login' ? 'Создать' : 'Войти' }}
-          </button>
-        </p>
+          <p v-if="mode === 'register'" class="text-center text-xs text-ink-3">{{ t('login.registerNote') }}</p>
+        </form>
       </div>
     </section>
   </div>
