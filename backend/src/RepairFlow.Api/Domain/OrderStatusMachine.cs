@@ -1,4 +1,5 @@
 using RepairFlow.Api.Domain.Enums;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Domain;
 
@@ -75,27 +76,35 @@ public static class OrderStatusMachine
             .OrderBy(s => (int)s)
             .ToList();
 
-    /// <summary>Проверка перехода с человекочитаемой причиной отказа.</summary>
+    /// <summary>Проверка перехода с человекочитаемой причиной отказа на языке запроса.</summary>
     public static TransitionCheck Validate(UserRole role, OrderStatus from, OrderStatus to)
     {
         if (from == to)
         {
-            return TransitionCheck.Fail($"Заявка уже находится в статусе «{Describe(from)}».");
+            return TransitionCheck.Fail(Texts.Pick(
+                $"The request is already “{Describe(from)}”.",
+                $"Заявка уже находится в статусе «{Describe(from)}»."));
         }
 
         if (IsTerminal(from))
         {
-            return TransitionCheck.Fail($"Заявка в статусе «{Describe(from)}» закрыта, менять статус нельзя.");
+            return TransitionCheck.Fail(Texts.Pick(
+                $"The request is closed (“{Describe(from)}”) and its status can’t change.",
+                $"Заявка в статусе «{Describe(from)}» закрыта, менять статус нельзя."));
         }
 
         if (!Transitions.TryGetValue((from, to), out var roles))
         {
-            return TransitionCheck.Fail($"Переход «{Describe(from)}» → «{Describe(to)}» не предусмотрен процессом.");
+            return TransitionCheck.Fail(Texts.Pick(
+                $"The process has no step from “{Describe(from)}” to “{Describe(to)}”.",
+                $"Переход «{Describe(from)}» → «{Describe(to)}» не предусмотрен процессом."));
         }
 
         return roles.Contains(role)
             ? TransitionCheck.Ok()
-            : TransitionCheck.Fail($"Роль «{Describe(role)}» не может выполнить переход «{Describe(from)}» → «{Describe(to)}».");
+            : TransitionCheck.Fail(Texts.Pick(
+                $"A {Describe(role).ToLowerInvariant()} can’t move a request from “{Describe(from)}” to “{Describe(to)}”.",
+                $"Роль «{Describe(role)}» не может выполнить переход «{Describe(from)}» → «{Describe(to)}»."));
     }
 
     /// <summary>Переход требует непустой сметы: нельзя отправить клиенту согласование пустого списка работ.</summary>
@@ -111,25 +120,41 @@ public static class OrderStatusMachine
     public static bool IsEstimateEditable(OrderStatus status) =>
         status is OrderStatus.New or OrderStatus.Diagnostics or OrderStatus.InProgress;
 
-    /// <summary>Русское название статуса — используется в сообщениях об ошибках и в истории.</summary>
-    public static string Describe(OrderStatus status) => status switch
-    {
-        OrderStatus.New => "Новая",
-        OrderStatus.Diagnostics => "Диагностика",
-        OrderStatus.AwaitingEstimateApproval => "Ожидает подтверждения сметы",
-        OrderStatus.InProgress => "В работе",
-        OrderStatus.ReadyForPickup => "Готова к выдаче",
-        OrderStatus.Completed => "Выдана",
-        OrderStatus.Cancelled => "Отменена",
-        OrderStatus.ClientRejected => "Отказ клиента",
-        _ => status.ToString()
-    };
+    /// <summary>
+    /// Название статуса на языке запроса — для сообщений об ошибках и подписей в ответах API.
+    /// Совпадает с подписями фронтенда, чтобы ошибка говорила теми же словами, что и экран.
+    /// </summary>
+    public static string Describe(OrderStatus status) => Texts.IsRussian
+        ? status switch
+        {
+            OrderStatus.New => "Новая",
+            OrderStatus.Diagnostics => "Диагностика",
+            OrderStatus.AwaitingEstimateApproval => "Ждёт согласования",
+            OrderStatus.InProgress => "В ремонте",
+            OrderStatus.ReadyForPickup => "Готова к выдаче",
+            OrderStatus.Completed => "Выдана",
+            OrderStatus.Cancelled => "Отменена",
+            OrderStatus.ClientRejected => "Отказ клиента",
+            _ => status.ToString()
+        }
+        : status switch
+        {
+            OrderStatus.New => "New",
+            OrderStatus.Diagnostics => "Diagnostics",
+            OrderStatus.AwaitingEstimateApproval => "Awaiting approval",
+            OrderStatus.InProgress => "In repair",
+            OrderStatus.ReadyForPickup => "Ready for pickup",
+            OrderStatus.Completed => "Handed over",
+            OrderStatus.Cancelled => "Cancelled",
+            OrderStatus.ClientRejected => "Declined",
+            _ => status.ToString()
+        };
 
     public static string Describe(UserRole role) => role switch
     {
-        UserRole.Client => "Клиент",
-        UserRole.Technician => "Мастер",
-        UserRole.Manager => "Менеджер",
+        UserRole.Client => Texts.Pick("Customer", "Клиент"),
+        UserRole.Technician => Texts.Pick("Technician", "Мастер"),
+        UserRole.Manager => Texts.Pick("Manager", "Менеджер"),
         _ => role.ToString()
     };
 }

@@ -2,6 +2,7 @@ using RepairFlow.Api.Contracts;
 using RepairFlow.Api.Domain;
 using RepairFlow.Api.Domain.Entities;
 using RepairFlow.Api.Domain.Enums;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Mapping;
 
@@ -49,7 +50,7 @@ public static class Mappings
     public static OrderItemDto ToDto(this OrderItem item) => new(
         item.Id,
         item.Type,
-        item.Type == OrderItemType.Part ? "Запчасть" : "Работа",
+        item.Type == OrderItemType.Part ? Texts.Pick("Part", "Запчасть") : Texts.Pick("Labour", "Работа"),
         item.Name,
         item.Quantity,
         item.UnitPrice,

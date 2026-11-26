@@ -7,6 +7,7 @@ using RepairFlow.Api.Data;
 using RepairFlow.Api.Domain.Entities;
 using RepairFlow.Api.Domain.Enums;
 using RepairFlow.Api.Mapping;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Services;
 
@@ -53,7 +54,7 @@ public sealed class AuthService : IAuthService
 
         if (await _db.Users.AnyAsync(u => u.Email == email, ct))
         {
-            throw new ConflictException("Пользователь с такой почтой уже зарегистрирован.");
+            throw new ConflictException(Texts.Pick("An account with this email is already registered.", "Пользователь с такой почтой уже зарегистрирован."));
         }
 
         var user = new User
@@ -70,7 +71,7 @@ public sealed class AuthService : IAuthService
         _db.Users.Add(user);
         await _db.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Зарегистрирован пользователь {Email}", user.Email);
+        _logger.LogInformation("User registered: {Email}", user.Email);
 
         return await IssueAsync(user, ip, ct);
     }
@@ -83,12 +84,12 @@ public sealed class AuthService : IAuthService
         // Одна и та же формулировка на «нет пользователя» и «неверный пароль» — чтобы почты нельзя было перебрать.
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
-            throw new UnauthorizedException("Неверная почта или пароль.");
+            throw new UnauthorizedException(Texts.Pick("Wrong email or password.", "Неверная почта или пароль."));
         }
 
         if (!user.IsActive)
         {
-            throw new ForbiddenException("Учётная запись отключена. Обратитесь к менеджеру.");
+            throw new ForbiddenException(Texts.Pick("This account is disabled. Contact a manager.", "Учётная запись отключена. Обратитесь к менеджеру."));
         }
 
         return await IssueAsync(user, ip, ct);
@@ -98,12 +99,12 @@ public sealed class AuthService : IAuthService
     {
         if (!_demo.SeedOnStartup)
         {
-            throw new ForbiddenException("Демо-режим отключён на этом стенде.");
+            throw new ForbiddenException(Texts.Pick("Demo mode is turned off on this instance.", "Демо-режим отключён на этом стенде."));
         }
 
         var email = DbSeeder.DemoEmailFor(role);
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct)
-                   ?? throw new NotFoundException("Демо-аккаунт не найден. Проверьте, что база заполнена демо-данными.");
+                   ?? throw new NotFoundException(Texts.Pick("Demo account not found. Make sure the database has been seeded.", "Демо-аккаунт не найден. Проверьте, что база заполнена демо-данными."));
 
         return await IssueAsync(user, ip, ct);
     }
@@ -112,7 +113,7 @@ public sealed class AuthService : IAuthService
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
-            throw new UnauthorizedException("Refresh-токен отсутствует.");
+            throw new UnauthorizedException(Texts.Pick("The refresh token is missing.", "Refresh-токен отсутствует."));
         }
 
         var stored = await _db.RefreshTokens
@@ -121,20 +122,20 @@ public sealed class AuthService : IAuthService
 
         if (stored is null)
         {
-            throw new UnauthorizedException("Refresh-токен недействителен.");
+            throw new UnauthorizedException(Texts.Pick("The refresh token is invalid.", "Refresh-токен недействителен."));
         }
 
         if (!stored.IsActive)
         {
             // Повторное использование отозванного токена — признак кражи: гасим всю сессию пользователя.
             await RevokeAllAsync(stored.UserId, ct);
-            _logger.LogWarning("Повторное использование отозванного refresh-токена пользователя {UserId}", stored.UserId);
-            throw new UnauthorizedException("Сессия завершена. Войдите заново.");
+            _logger.LogWarning("Reuse of a revoked refresh token by user {UserId}", stored.UserId);
+            throw new UnauthorizedException(Texts.Pick("Your session has ended. Please sign in again.", "Сессия завершена. Войдите заново."));
         }
 
         if (!stored.User.IsActive)
         {
-            throw new ForbiddenException("Учётная запись отключена.");
+            throw new ForbiddenException(Texts.Pick("This account is disabled.", "Учётная запись отключена."));
         }
 
         var result = await IssueAsync(stored.User, ip, ct, rotatedFrom: stored);
@@ -161,7 +162,7 @@ public sealed class AuthService : IAuthService
     public async Task<UserDto> GetCurrentAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct)
-                   ?? throw new UnauthorizedException("Пользователь не найден.");
+                   ?? throw new UnauthorizedException(Texts.Pick("User not found.", "Пользователь не найден."));
 
         return user.ToDto();
     }

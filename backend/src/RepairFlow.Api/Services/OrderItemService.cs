@@ -7,6 +7,7 @@ using RepairFlow.Api.Domain;
 using RepairFlow.Api.Domain.Entities;
 using RepairFlow.Api.Domain.Enums;
 using RepairFlow.Api.Mapping;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Services;
 
@@ -95,7 +96,7 @@ public sealed class OrderItemService : IOrderItemService
         var order = await LoadEditableAsync(orderId, ct);
 
         var item = await _db.OrderItems.FirstOrDefaultAsync(i => i.Id == itemId && i.OrderId == order.Id, ct)
-                   ?? throw NotFoundException.For("Позиция сметы", itemId);
+                   ?? throw NotFoundException.For(Texts.Pick("estimate item", "позиция сметы"), itemId);
 
         item.Type = request.Type;
         item.Name = request.Name.Trim();
@@ -113,7 +114,7 @@ public sealed class OrderItemService : IOrderItemService
         var order = await LoadEditableAsync(orderId, ct);
 
         var item = await _db.OrderItems.FirstOrDefaultAsync(i => i.Id == itemId && i.OrderId == order.Id, ct)
-                   ?? throw NotFoundException.For("Позиция сметы", itemId);
+                   ?? throw NotFoundException.For(Texts.Pick("estimate item", "позиция сметы"), itemId);
 
         _db.OrderItems.Remove(item);
         await TouchOrderAsync(order.Id, ct);
@@ -124,7 +125,7 @@ public sealed class OrderItemService : IOrderItemService
     public Task<OrderDetailsDto> ApproveAsync(Guid orderId, CancellationToken ct = default) =>
         _orders.ChangeStatusAsync(
             orderId,
-            new ChangeStatusRequest(OrderStatus.InProgress, "Смета подтверждена клиентом"),
+            new ChangeStatusRequest(OrderStatus.InProgress, Texts.Pick("Estimate approved by the customer", "Смета подтверждена клиентом")),
             ct);
 
     public Task<OrderDetailsDto> RejectAsync(Guid orderId, RejectEstimateRequest request, CancellationToken ct = default) =>
@@ -132,7 +133,9 @@ public sealed class OrderItemService : IOrderItemService
             orderId,
             new ChangeStatusRequest(
                 OrderStatus.ClientRejected,
-                string.IsNullOrWhiteSpace(request.Reason) ? "Клиент отказался от ремонта" : request.Reason.Trim()),
+                string.IsNullOrWhiteSpace(request.Reason)
+                    ? Texts.Pick("The customer declined the repair", "Клиент отказался от ремонта")
+                    : request.Reason.Trim()),
             ct);
 
     private async Task<Order> LoadEditableAsync(Guid orderId, CancellationToken ct)
@@ -141,13 +144,15 @@ public sealed class OrderItemService : IOrderItemService
 
         if (_currentUser.IsClient)
         {
-            throw new ForbiddenException("Смету формирует сервис. Клиент может её только подтвердить или отклонить.");
+            throw new ForbiddenException(Texts.Pick("The estimate is built by the shop. A customer can only approve or decline it.", "Смету формирует сервис. Клиент может её только подтвердить или отклонить."));
         }
 
         if (!OrderStatusMachine.IsEstimateEditable(order.Status))
         {
             throw new ConflictException(
-                $"В статусе «{OrderStatusMachine.Describe(order.Status)}» смету менять нельзя.");
+                Texts.Pick(
+                    $"The estimate can’t be changed while the request is “{OrderStatusMachine.Describe(order.Status)}”.",
+                    $"В статусе «{OrderStatusMachine.Describe(order.Status)}» смету менять нельзя."));
         }
 
         return order;

@@ -39,7 +39,7 @@ internal sealed class BearerSecuritySchemeTransformer : IOpenApiDocumentTransfor
                 Scheme = "bearer",
                 BearerFormat = "JWT",
                 In = ParameterLocation.Header,
-                Description = "Access-токен из POST /api/auth/login или /api/auth/demo."
+                Description = "Access token from POST /api/auth/login or /api/auth/demo."
             }
         };
 

@@ -1,3 +1,5 @@
+using RepairFlow.Api.Localization;
+
 namespace RepairFlow.Api.Common;
 
 /// <summary>
@@ -23,11 +25,11 @@ public sealed class NotFoundException : AppException
     }
 
     public static NotFoundException For(string entity, object id) =>
-        new($"{entity} с идентификатором {id} не найден.");
+        new(Texts.Pick($"Not found: {entity} {id}.", $"Не найдено: {entity} {id}."));
 
     public override int StatusCode => StatusCodes.Status404NotFound;
 
-    public override string Title => "Не найдено";
+    public override string Title => Texts.Pick("Not found", "Не найдено");
 }
 
 /// <summary>403 — пользователь аутентифицирован, но операция ему не разрешена.</summary>
@@ -39,7 +41,7 @@ public sealed class ForbiddenException : AppException
 
     public override int StatusCode => StatusCodes.Status403Forbidden;
 
-    public override string Title => "Доступ запрещён";
+    public override string Title => Texts.Pick("Forbidden", "Доступ запрещён");
 }
 
 /// <summary>401 — не аутентифицирован либо неверные учётные данные.</summary>
@@ -51,7 +53,7 @@ public sealed class UnauthorizedException : AppException
 
     public override int StatusCode => StatusCodes.Status401Unauthorized;
 
-    public override string Title => "Требуется авторизация";
+    public override string Title => Texts.Pick("Authentication required", "Требуется авторизация");
 }
 
 /// <summary>409 — запрос корректен, но нарушает бизнес-правило (например, недопустимый переход статуса).</summary>
@@ -63,14 +65,14 @@ public sealed class ConflictException : AppException
 
     public override int StatusCode => StatusCodes.Status409Conflict;
 
-    public override string Title => "Операция недопустима";
+    public override string Title => Texts.Pick("Operation not allowed", "Операция недопустима");
 }
 
 /// <summary>400 — ошибки валидации полей, сгруппированные по именам полей.</summary>
 public sealed class ValidationFailedException : AppException
 {
     public ValidationFailedException(IDictionary<string, string[]> errors)
-        : base("Запрос не прошёл валидацию.")
+        : base(Texts.Pick("The request didn’t pass validation.", "Запрос не прошёл валидацию."))
     {
         Errors = errors;
     }
@@ -79,5 +81,5 @@ public sealed class ValidationFailedException : AppException
 
     public override int StatusCode => StatusCodes.Status400BadRequest;
 
-    public override string Title => "Ошибка валидации";
+    public override string Title => Texts.Pick("Validation failed", "Ошибка валидации");
 }

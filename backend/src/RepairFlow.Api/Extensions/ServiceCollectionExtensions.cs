@@ -85,7 +85,7 @@ public static class ServiceCollectionExtensions
         if (string.IsNullOrWhiteSpace(jwt.Key) || jwt.Key.Length < 32)
         {
             throw new InvalidOperationException(
-                "Jwt__Key не задан или короче 32 символов. Задайте секрет через переменные окружения.");
+                "Jwt__Key is missing or shorter than 32 characters. Set the secret through environment variables.");
         }
 
         services

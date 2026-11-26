@@ -4,6 +4,7 @@ using RepairFlow.Api.Authorization;
 using RepairFlow.Api.Common;
 using RepairFlow.Api.Data;
 using RepairFlow.Api.Domain.Entities;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Services;
 
@@ -38,13 +39,13 @@ public sealed class OrderAccessGuard : IOrderAccessGuard
     public async Task EnsureAsync(Order order, OrderAccessRequirement requirement)
     {
         var principal = _httpContext.HttpContext?.User
-                        ?? throw new UnauthorizedException("Запрос выполнен вне контекста пользователя.");
+                        ?? throw new UnauthorizedException(Texts.Pick("The request was made outside a user context.", "Запрос выполнен вне контекста пользователя."));
 
         var result = await _authorization.AuthorizeAsync(principal, order, requirement);
 
         if (!result.Succeeded)
         {
-            throw new ForbiddenException($"Нет прав на заявку {order.Number}.");
+            throw new ForbiddenException(Texts.Pick($"You don’t have access to request {order.Number}.", $"Нет прав на заявку {order.Number}."));
         }
     }
 
@@ -54,7 +55,7 @@ public sealed class OrderAccessGuard : IOrderAccessGuard
         CancellationToken ct = default)
     {
         var order = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId, ct)
-                    ?? throw NotFoundException.For("Заявка", orderId);
+                    ?? throw NotFoundException.For(Texts.Pick("request", "заявка"), orderId);
 
         await EnsureAsync(order, requirement);
 

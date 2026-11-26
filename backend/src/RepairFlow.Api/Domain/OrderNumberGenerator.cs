@@ -18,12 +18,12 @@ public static class OrderNumberGenerator
     {
         if (year < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(year), year, "Некорректный год.");
+            throw new ArgumentOutOfRangeException(nameof(year), year, "Invalid year.");
         }
 
         if (sequence < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(sequence), sequence, "Порядковый номер начинается с единицы.");
+            throw new ArgumentOutOfRangeException(nameof(sequence), sequence, "The sequence starts at 1.");
         }
 
         var yearPart = year.ToString("D4", CultureInfo.InvariantCulture);

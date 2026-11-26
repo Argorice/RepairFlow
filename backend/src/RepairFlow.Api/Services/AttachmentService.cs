@@ -7,6 +7,7 @@ using RepairFlow.Api.Contracts;
 using RepairFlow.Api.Data;
 using RepairFlow.Api.Domain.Entities;
 using RepairFlow.Api.Mapping;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Services;
 
@@ -68,7 +69,9 @@ public sealed class AttachmentService : IAttachmentService
         var count = await _db.Attachments.CountAsync(a => a.OrderId == orderId, ct);
         if (count >= _options.MaxAttachmentsPerOrder)
         {
-            throw new ConflictException($"К заявке нельзя приложить больше {_options.MaxAttachmentsPerOrder} файлов.");
+            throw new ConflictException(Texts.Pick(
+                $"A request can’t have more than {_options.MaxAttachmentsPerOrder} files.",
+                $"К заявке нельзя приложить больше {_options.MaxAttachmentsPerOrder} файлов."));
         }
 
         var extension = Path.GetExtension(file.FileName);
@@ -107,14 +110,14 @@ public sealed class AttachmentService : IAttachmentService
     {
         var attachment = await _db.Attachments.AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == attachmentId, ct)
-            ?? throw NotFoundException.For("Файл", attachmentId);
+            ?? throw NotFoundException.For(Texts.Pick("file", "файл"), attachmentId);
 
         // Права проверяются по заявке-владельцу: прямая ссылка на файл ничего не открывает сама по себе.
         await _guard.LoadOrderAsync(attachment.OrderId, OrderAccessRequirement.Read, ct);
 
         if (!_storage.Exists(attachment.StoredPath))
         {
-            throw new NotFoundException("Файл отсутствует в хранилище.");
+            throw new NotFoundException(Texts.Pick("The file is missing from storage.", "Файл отсутствует в хранилище."));
         }
 
         return new AttachmentContent(
@@ -126,13 +129,13 @@ public sealed class AttachmentService : IAttachmentService
     public async Task DeleteAsync(Guid attachmentId, CancellationToken ct = default)
     {
         var attachment = await _db.Attachments.FirstOrDefaultAsync(a => a.Id == attachmentId, ct)
-                         ?? throw NotFoundException.For("Файл", attachmentId);
+                         ?? throw NotFoundException.For(Texts.Pick("file", "файл"), attachmentId);
 
         await _guard.LoadOrderAsync(attachment.OrderId, OrderAccessRequirement.Write, ct);
 
         if (!_currentUser.IsManager && attachment.UploadedById != _currentUser.Id)
         {
-            throw new ForbiddenException("Удалить файл может тот, кто его загрузил, или менеджер.");
+            throw new ForbiddenException(Texts.Pick("Only the uploader or a manager can delete a file.", "Удалить файл может тот, кто его загрузил, или менеджер."));
         }
 
         _db.Attachments.Remove(attachment);
@@ -147,12 +150,12 @@ public sealed class AttachmentService : IAttachmentService
 
         if (file.Length <= 0)
         {
-            errors["file"] = new[] { "Файл пустой." };
+            errors["file"] = new[] { Texts.Pick("The file is empty.", "Файл пустой.") };
         }
         else if (file.Length > _options.MaxFileSizeBytes)
         {
             var limitMb = _options.MaxFileSizeBytes / 1024d / 1024d;
-            errors["file"] = new[] { $"Файл больше допустимых {limitMb:0.#} МБ." };
+            errors["file"] = new[] { Texts.Pick($"The file is larger than {limitMb:0.#} MB.", $"Файл больше допустимых {limitMb:0.#} МБ.") };
         }
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -161,7 +164,9 @@ public sealed class AttachmentService : IAttachmentService
         {
             errors["fileName"] = new[]
             {
-                $"Недопустимое расширение «{extension}». Разрешены: {string.Join(", ", _options.AllowedExtensions)}."
+                Texts.Pick(
+                    $"File type “{extension}” isn’t allowed. Allowed: {string.Join(", ", _options.AllowedExtensions)}.",
+                    $"Недопустимое расширение «{extension}». Разрешены: {string.Join(", ", _options.AllowedExtensions)}.")
             };
         }
 
@@ -169,7 +174,7 @@ public sealed class AttachmentService : IAttachmentService
         {
             errors["contentType"] = new[]
             {
-                $"Недопустимый тип файла «{file.ContentType}»."
+                Texts.Pick($"File content type “{file.ContentType}” isn’t allowed.", $"Недопустимый тип файла «{file.ContentType}».")
             };
         }
 

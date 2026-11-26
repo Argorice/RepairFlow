@@ -20,12 +20,12 @@ public static class EstimateCalculator
     {
         if (quantity < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(quantity), quantity, "Количество не может быть отрицательным.");
+            throw new ArgumentOutOfRangeException(nameof(quantity), quantity, "Quantity can’t be negative.");
         }
 
         if (unitPrice < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(unitPrice), unitPrice, "Цена не может быть отрицательной.");
+            throw new ArgumentOutOfRangeException(nameof(unitPrice), unitPrice, "Price can’t be negative.");
         }
 
         return Round(quantity * unitPrice);

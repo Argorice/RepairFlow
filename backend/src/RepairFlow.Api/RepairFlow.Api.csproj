@@ -10,6 +10,11 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      Инвариантный режим без ICU оставляем: серверу не нужны региональные форматы. Но названия
+      культур «en» и «ru» создавать надо — по ним middleware локализации выбирает язык текстов.
+    -->
+    <PredefinedCulturesOnly>false</PredefinedCulturesOnly>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,6 +37,11 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!--
+      Npgsql тянет Relational 10.0.4, а Design — 10.0.11. Design приватный и в тесты не уходит,
+      поэтому без прямой ссылки тестовый проект получал бы старую версию и ругался на конфликт.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.9.0" />
   </ItemGroup>

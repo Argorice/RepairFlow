@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using RepairFlow.Api.Common;
 using RepairFlow.Api.Domain.Enums;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Services;
 
@@ -41,7 +42,7 @@ public sealed class CurrentUser : ICurrentUser
             var raw = Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(raw, out var id)
                 ? id
-                : throw new UnauthorizedException("В токене отсутствует идентификатор пользователя.");
+                : throw new UnauthorizedException(Texts.Pick("The token has no user id.", "В токене отсутствует идентификатор пользователя."));
         }
     }
 
@@ -54,7 +55,7 @@ public sealed class CurrentUser : ICurrentUser
             var raw = Principal?.FindFirstValue(ClaimTypes.Role);
             return Enum.TryParse<UserRole>(raw, out var role)
                 ? role
-                : throw new UnauthorizedException("В токене отсутствует роль пользователя.");
+                : throw new UnauthorizedException(Texts.Pick("The token has no user role.", "В токене отсутствует роль пользователя."));
         }
     }
 

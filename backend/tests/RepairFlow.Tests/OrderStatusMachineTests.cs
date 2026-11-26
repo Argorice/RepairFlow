@@ -22,10 +22,27 @@ public class OrderStatusMachineTests
     [Fact]
     public void Client_cannot_start_diagnostics()
     {
+        using var _ = UiCulture.Use("en");
         var result = OrderStatusMachine.Validate(UserRole.Client, OrderStatus.New, OrderStatus.Diagnostics);
 
         Assert.False(result.IsAllowed);
-        Assert.Contains("Клиент", result.Error);
+        Assert.Contains("customer", result.Error);
+    }
+
+    [Fact]
+    public void Rejection_reason_follows_the_request_language()
+    {
+        using (UiCulture.Use("ru"))
+        {
+            var result = OrderStatusMachine.Validate(UserRole.Client, OrderStatus.New, OrderStatus.Diagnostics);
+            Assert.Contains("Клиент", result.Error);
+        }
+
+        using (UiCulture.Use("en"))
+        {
+            var result = OrderStatusMachine.Validate(UserRole.Client, OrderStatus.New, OrderStatus.Diagnostics);
+            Assert.Contains("customer", result.Error);
+        }
     }
 
     [Fact]
@@ -67,19 +84,21 @@ public class OrderStatusMachineTests
     [Fact]
     public void Transition_to_same_status_is_rejected()
     {
+        using var _ = UiCulture.Use("en");
         var result = OrderStatusMachine.Validate(UserRole.Manager, OrderStatus.InProgress, OrderStatus.InProgress);
 
         Assert.False(result.IsAllowed);
-        Assert.Contains("уже находится", result.Error);
+        Assert.Contains("already", result.Error);
     }
 
     [Fact]
     public void Undefined_transition_is_rejected()
     {
+        using var _ = UiCulture.Use("en");
         var result = OrderStatusMachine.Validate(UserRole.Manager, OrderStatus.New, OrderStatus.Completed);
 
         Assert.False(result.IsAllowed);
-        Assert.Contains("не предусмотрен", result.Error);
+        Assert.Contains("no step", result.Error);
     }
 
     [Theory]

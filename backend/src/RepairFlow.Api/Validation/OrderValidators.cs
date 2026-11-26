@@ -1,5 +1,6 @@
 using FluentValidation;
 using RepairFlow.Api.Contracts;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Validation;
 
@@ -8,23 +9,23 @@ public sealed class CreateOrderRequestValidator : AbstractValidator<CreateOrderR
     public CreateOrderRequestValidator()
     {
         RuleFor(x => x.DeviceType)
-            .NotEmpty().WithMessage("Укажите тип устройства: ноутбук, смартфон, телевизор…")
+            .NotEmpty().WithMessage(_ => Texts.Pick("Enter the device type: laptop, phone, TV…", "Укажите тип устройства: ноутбук, смартфон, телевизор…"))
             .MaximumLength(100);
 
         RuleFor(x => x.Brand)
-            .NotEmpty().WithMessage("Укажите производителя.")
+            .NotEmpty().WithMessage(_ => Texts.Pick("Enter the brand.", "Укажите производителя."))
             .MaximumLength(100);
 
         RuleFor(x => x.Model)
-            .NotEmpty().WithMessage("Укажите модель.")
+            .NotEmpty().WithMessage(_ => Texts.Pick("Enter the model.", "Укажите модель."))
             .MaximumLength(100);
 
         RuleFor(x => x.SerialNumber)
             .MaximumLength(100);
 
         RuleFor(x => x.ProblemDescription)
-            .NotEmpty().WithMessage("Опишите, что случилось — чем подробнее, тем быстрее диагностика.")
-            .MinimumLength(10).WithMessage("Слишком коротко: опишите проблему хотя бы одним предложением.")
+            .NotEmpty().WithMessage(_ => Texts.Pick("Describe what happened — the more detail, the faster the diagnosis.", "Опишите, что случилось — чем подробнее, тем быстрее диагностика."))
+            .MinimumLength(10).WithMessage(_ => Texts.Pick("Too short: describe the problem in at least one sentence.", "Слишком коротко: опишите проблему хотя бы одним предложением."))
             .MaximumLength(4000);
 
         RuleFor(x => x.Priority)
@@ -51,7 +52,7 @@ public sealed class UpdateOrderRequestValidator : AbstractValidator<UpdateOrderR
 
         RuleFor(x => x)
             .Must(HasAnyField)
-            .WithMessage("Запрос не содержит ни одного поля для изменения.")
+            .WithMessage(_ => Texts.Pick("The request contains no fields to change.", "Запрос не содержит ни одного поля для изменения."))
             .OverridePropertyName("request");
     }
 
@@ -68,7 +69,7 @@ public sealed class ChangeStatusRequestValidator : AbstractValidator<ChangeStatu
 {
     public ChangeStatusRequestValidator()
     {
-        RuleFor(x => x.Status).IsInEnum().WithMessage("Неизвестный статус.");
+        RuleFor(x => x.Status).IsInEnum().WithMessage(_ => Texts.Pick("Unknown status.", "Неизвестный статус."));
         RuleFor(x => x.Comment).MaximumLength(1000);
     }
 }
@@ -78,7 +79,7 @@ public sealed class AssignTechnicianRequestValidator : AbstractValidator<AssignT
     public AssignTechnicianRequestValidator()
     {
         RuleFor(x => x.TechnicianId)
-            .NotEqual(Guid.Empty).WithMessage("Некорректный идентификатор мастера.")
+            .NotEqual(Guid.Empty).WithMessage(_ => Texts.Pick("Invalid technician id.", "Некорректный идентификатор мастера."))
             .When(x => x.TechnicianId is not null);
     }
 }
@@ -87,19 +88,19 @@ public sealed class SaveOrderItemRequestValidator : AbstractValidator<SaveOrderI
 {
     public SaveOrderItemRequestValidator()
     {
-        RuleFor(x => x.Type).IsInEnum().WithMessage("Неизвестный тип позиции.");
+        RuleFor(x => x.Type).IsInEnum().WithMessage(_ => Texts.Pick("Unknown item type.", "Неизвестный тип позиции."));
 
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("Укажите название работы или запчасти.")
+            .NotEmpty().WithMessage(_ => Texts.Pick("Enter the name of the labour or part.", "Укажите название работы или запчасти."))
             .MaximumLength(200);
 
         RuleFor(x => x.Quantity)
-            .GreaterThan(0).WithMessage("Количество должно быть больше нуля.")
-            .LessThanOrEqualTo(10_000).WithMessage("Количество выглядит неправдоподобно большим.");
+            .GreaterThan(0).WithMessage(_ => Texts.Pick("Quantity must be greater than zero.", "Количество должно быть больше нуля."))
+            .LessThanOrEqualTo(10_000).WithMessage(_ => Texts.Pick("The quantity looks implausibly large.", "Количество выглядит неправдоподобно большим."));
 
         RuleFor(x => x.UnitPrice)
-            .GreaterThanOrEqualTo(0).WithMessage("Цена не может быть отрицательной.")
-            .LessThanOrEqualTo(10_000_000).WithMessage("Цена выглядит неправдоподобно большой.");
+            .GreaterThanOrEqualTo(0).WithMessage(_ => Texts.Pick("The price can’t be negative.", "Цена не может быть отрицательной."))
+            .LessThanOrEqualTo(10_000_000).WithMessage(_ => Texts.Pick("The price looks implausibly large.", "Цена выглядит неправдоподобно большой."));
     }
 }
 
@@ -116,7 +117,7 @@ public sealed class CreateCommentRequestValidator : AbstractValidator<CreateComm
     public CreateCommentRequestValidator()
     {
         RuleFor(x => x.Text)
-            .NotEmpty().WithMessage("Комментарий не может быть пустым.")
+            .NotEmpty().WithMessage(_ => Texts.Pick("The comment can’t be empty.", "Комментарий не может быть пустым."))
             .MaximumLength(4000);
     }
 }

@@ -8,6 +8,7 @@ using RepairFlow.Api.Contracts;
 using RepairFlow.Api.Data;
 using RepairFlow.Api.Domain;
 using RepairFlow.Api.Domain.Enums;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Services;
 
@@ -50,7 +51,8 @@ public sealed class DashboardService : IDashboardService
 
         // Ключ строится по исходным параметрам запроса, а не по вычисленному периоду:
         // иначе «последние 30 дней» давали бы новый ключ на каждый запрос и кеш никогда бы не срабатывал.
-        var key = $"dashboard:{Stamp(from)}:{Stamp(to)}";
+        // Язык — тоже часть ключа: в сводке лежат уже переведённые подписи статусов.
+        var key = $"dashboard:{Texts.Language}:{Stamp(from)}:{Stamp(to)}";
 
         return _cache.GetOrCreateAsync(
             key,

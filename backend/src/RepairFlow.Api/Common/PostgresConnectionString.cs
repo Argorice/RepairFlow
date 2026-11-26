@@ -18,7 +18,7 @@ public static class PostgresConnectionString
         if (string.IsNullOrWhiteSpace(raw))
         {
             throw new InvalidOperationException(
-                "Не задана строка подключения ConnectionStrings__Default.");
+                "The ConnectionStrings__Default connection string is not set.");
         }
 
         var value = raw.Trim();
@@ -34,7 +34,7 @@ public static class PostgresConnectionString
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
         {
             throw new InvalidOperationException(
-                "Строка подключения похожа на URI, но разобрать её не удалось.");
+                "The connection string looks like a URI but couldn’t be parsed.");
         }
 
         var credentials = uri.UserInfo.Split(':', 2);

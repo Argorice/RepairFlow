@@ -8,6 +8,7 @@ using RepairFlow.Api.Domain.Entities;
 using RepairFlow.Api.Domain.Enums;
 using RepairFlow.Api.Mapping;
 using RepairFlow.Api.Realtime;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Services;
 
@@ -163,14 +164,15 @@ public sealed class OrderService : IOrderService
             FromStatus = null,
             ToStatus = OrderStatus.New,
             ChangedById = _currentUser.Id,
-            Comment = "Заявка создана",
+            // Создание заявки интерфейс подписывает сам: в истории нет смысла хранить фразу на одном языке.
+            Comment = null,
             ChangedAt = now
         });
 
         await _db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _logger.LogInformation("Создана заявка {Number} клиентом {UserId}", order.Number, _currentUser.Id);
+        _logger.LogInformation("Request {Number} created by customer {UserId}", order.Number, _currentUser.Id);
 
         return await GetByIdAsync(order.Id, ct);
     }
@@ -181,12 +183,12 @@ public sealed class OrderService : IOrderService
 
         if (OrderStatusMachine.IsTerminal(order.Status))
         {
-            throw new ConflictException("Закрытую заявку редактировать нельзя.");
+            throw new ConflictException(Texts.Pick("A closed request can’t be edited.", "Закрытую заявку редактировать нельзя."));
         }
 
         if (_currentUser.IsClient && order.Status != OrderStatus.New)
         {
-            throw new ForbiddenException("Заявку можно править, пока она в статусе «Новая». Дальше — через комментарий мастеру.");
+            throw new ForbiddenException(Texts.Pick("A request can only be edited while it’s New. After that, message the technician instead.", "Заявку можно править, пока она в статусе «Новая». Дальше — через комментарий мастеру."));
         }
 
         if (request.DeviceType is not null)
@@ -218,7 +220,7 @@ public sealed class OrderService : IOrderService
         {
             if (_currentUser.IsClient)
             {
-                throw new ForbiddenException("Приоритет заявки выставляет сервис, а не клиент.");
+                throw new ForbiddenException(Texts.Pick("Priority is set by the shop, not the customer.", "Приоритет заявки выставляет сервис, а не клиент."));
             }
 
             order.Priority = request.Priority.Value;
@@ -237,7 +239,7 @@ public sealed class OrderService : IOrderService
             .Include(o => o.Client)
             .Include(o => o.AssignedTechnician)
             .FirstOrDefaultAsync(o => o.Id == id, ct)
-            ?? throw NotFoundException.For("Заявка", id);
+            ?? throw NotFoundException.For(Texts.Pick("request", "заявка"), id);
 
         await _guard.EnsureAsync(order, OrderAccessRequirement.Write);
 
@@ -249,7 +251,7 @@ public sealed class OrderService : IOrderService
 
         if (OrderStatusMachine.RequiresNonEmptyEstimate(request.Status) && order.Items.Count == 0)
         {
-            throw new ConflictException("Смета пустая — сначала добавьте работы или запчасти.");
+            throw new ConflictException(Texts.Pick("The estimate is empty — add labour or parts first.", "Смета пустая — сначала добавьте работы или запчасти."));
         }
 
         var now = DateTime.UtcNow;
@@ -289,7 +291,7 @@ public sealed class OrderService : IOrderService
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Заявка {Number}: {From} → {To} пользователем {UserId}",
+            "Request {Number}: {From} → {To} by user {UserId}",
             order.Number,
             from,
             request.Status,
@@ -307,7 +309,7 @@ public sealed class OrderService : IOrderService
 
         if (OrderStatusMachine.IsTerminal(order.Status))
         {
-            throw new ConflictException("Закрытую заявку назначить нельзя.");
+            throw new ConflictException(Texts.Pick("A closed request can’t be assigned.", "Закрытую заявку назначить нельзя."));
         }
 
         User? technician = null;
@@ -315,16 +317,16 @@ public sealed class OrderService : IOrderService
         if (request.TechnicianId is not null)
         {
             technician = await _db.Users.FirstOrDefaultAsync(u => u.Id == request.TechnicianId, ct)
-                         ?? throw NotFoundException.For("Мастер", request.TechnicianId);
+                         ?? throw NotFoundException.For(Texts.Pick("technician", "мастер"), request.TechnicianId);
 
             if (technician.Role != UserRole.Technician)
             {
-                throw new ConflictException("Назначать заявку можно только пользователю с ролью «Мастер».");
+                throw new ConflictException(Texts.Pick("Requests can only be assigned to users with the Technician role.", "Назначать заявку можно только пользователю с ролью «Мастер»."));
             }
 
             if (!technician.IsActive)
             {
-                throw new ConflictException("Мастер отключён и не может брать заявки.");
+                throw new ConflictException(Texts.Pick("This technician is disabled and can’t take requests.", "Мастер отключён и не может брать заявки."));
             }
         }
 
@@ -339,8 +341,8 @@ public sealed class OrderService : IOrderService
             AuthorId = _currentUser.Id,
             IsInternal = true,
             Text = technician is null
-                ? "Мастер снят с заявки."
-                : $"Заявка назначена на мастера: {technician.FullName}.",
+                ? Texts.Pick("Technician removed from the request.", "Мастер снят с заявки.")
+                : Texts.Pick($"Assigned to technician {technician.FullName}.", $"Заявка назначена на мастера: {technician.FullName}."),
             CreatedAt = now
         });
 
@@ -379,7 +381,7 @@ public sealed class OrderService : IOrderService
         }
 
         var order = await query.FirstOrDefaultAsync(o => o.Id == id, ct)
-                    ?? throw NotFoundException.For("Заявка", id);
+                    ?? throw NotFoundException.For(Texts.Pick("request", "заявка"), id);
 
         await _guard.EnsureAsync(order, requirement);
 

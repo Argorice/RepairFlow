@@ -47,7 +47,7 @@ public sealed class MessagePackCacheStore : ICacheStore
             catch (MessagePackSerializationException exception)
             {
                 // Контракт DTO поменялся между деплоями — считаем это промахом кеша, а не ошибкой.
-                _logger.LogWarning(exception, "Не удалось прочитать кеш по ключу {Key}, пересчитываю.", key);
+                _logger.LogWarning(exception, "Failed to read cache key {Key}, recomputing.", key);
                 await _cache.RemoveAsync(key, ct);
             }
         }
@@ -61,7 +61,7 @@ public sealed class MessagePackCacheStore : ICacheStore
             new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl },
             ct);
 
-        _logger.LogDebug("Кеш {Key} обновлён, {Bytes} байт.", key, payload.Length);
+        _logger.LogDebug("Cache {Key} refreshed, {Bytes} bytes.", key, payload.Length);
 
         return value;
     }

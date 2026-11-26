@@ -23,7 +23,7 @@ public sealed class DateOnlyFormatter : IMessagePackFormatter<DateOnly>
 
         if (raw is null)
         {
-            throw new MessagePackSerializationException("Ожидалась дата в формате yyyy-MM-dd, получен nil.");
+            throw new MessagePackSerializationException("Expected a yyyy-MM-dd date, got nil.");
         }
 
         return DateOnly.ParseExact(raw, Format, CultureInfo.InvariantCulture);

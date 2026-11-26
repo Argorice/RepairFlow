@@ -72,7 +72,7 @@ public sealed class LocalFileStorage : IFileStorage
 
         if (!combined.StartsWith(Path.GetFullPath(_root), StringComparison.Ordinal))
         {
-            throw new UnauthorizedAccessException("Попытка выйти за пределы файлового хранилища.");
+            throw new UnauthorizedAccessException("Attempt to escape the file storage root.");
         }
 
         return combined;

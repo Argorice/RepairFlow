@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using RepairFlow.Api.Common;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Middleware;
 
@@ -40,7 +41,7 @@ public sealed class ExceptionHandlingMiddleware
     {
         if (context.Response.HasStarted)
         {
-            _logger.LogError(exception, "Ошибка после начала отправки ответа — перехватить её уже нельзя.");
+            _logger.LogError(exception, "Error after the response has started — it can no longer be turned into ProblemDetails.");
             throw exception;
         }
 
@@ -48,12 +49,12 @@ public sealed class ExceptionHandlingMiddleware
 
         if (problem.Status >= StatusCodes.Status500InternalServerError)
         {
-            _logger.LogError(exception, "Необработанная ошибка при {Method} {Path}", context.Request.Method, context.Request.Path);
+            _logger.LogError(exception, "Unhandled error on {Method} {Path}", context.Request.Method, context.Request.Path);
         }
         else
         {
             _logger.LogInformation(
-                "Запрос отклонён ({Status}) при {Method} {Path}: {Message}",
+                "Request rejected ({Status}) on {Method} {Path}: {Message}",
                 problem.Status,
                 context.Request.Method,
                 context.Request.Path,
@@ -98,8 +99,8 @@ public sealed class ExceptionHandlingMiddleware
                 return new ProblemDetails
                 {
                     Status = StatusCodes.Status499ClientClosedRequest,
-                    Title = "Запрос отменён",
-                    Detail = "Клиент разорвал соединение до завершения обработки.",
+                    Title = Texts.Pick("Request cancelled", "Запрос отменён"),
+                    Detail = Texts.Pick("The client closed the connection before processing finished.", "Клиент разорвал соединение до завершения обработки."),
                     Instance = context.Request.Path
                 };
 
@@ -107,11 +108,11 @@ public sealed class ExceptionHandlingMiddleware
                 return new ProblemDetails
                 {
                     Status = StatusCodes.Status500InternalServerError,
-                    Title = "Внутренняя ошибка сервера",
+                    Title = Texts.Pick("Internal server error", "Внутренняя ошибка сервера"),
                     // Наружу текст исключения уезжает только в разработке.
                     Detail = _environment.IsDevelopment()
                         ? exception.ToString()
-                        : "Что-то пошло не так. Мы уже знаем и разбираемся.",
+                        : Texts.Pick("Something went wrong. We’re on it.", "Что-то пошло не так. Мы уже знаем и разбираемся."),
                     Instance = context.Request.Path
                 };
         }

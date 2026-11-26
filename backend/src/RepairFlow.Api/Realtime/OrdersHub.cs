@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using RepairFlow.Api.Authorization;
 using RepairFlow.Api.Data;
 using RepairFlow.Api.Domain.Enums;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Realtime;
 
@@ -39,7 +40,7 @@ public sealed class OrdersHub : Hub
     {
         if (!TryGetIdentity(out var userId, out var role))
         {
-            throw new HubException("Не удалось определить пользователя.");
+            throw new HubException(Texts.Pick("Couldn’t identify the user.", "Не удалось определить пользователя."));
         }
 
         var order = await _db.Orders
@@ -48,7 +49,7 @@ public sealed class OrdersHub : Hub
 
         if (order is null || !OrderAccessHandler.IsGranted(role, userId, order, OrderAccessLevel.Read))
         {
-            throw new HubException("Заявка недоступна.");
+            throw new HubException(Texts.Pick("The request is not available.", "Заявка недоступна."));
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, OrderGroup(orderId), Context.ConnectionAborted);

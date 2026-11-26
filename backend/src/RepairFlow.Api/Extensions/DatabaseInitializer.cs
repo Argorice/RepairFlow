@@ -27,7 +27,7 @@ public static class DatabaseInitializer
         if (db.Database.GetMigrations().Any())
         {
             await db.Database.MigrateAsync(ct);
-            logger.LogInformation("Миграции применены.");
+            logger.LogInformation("Migrations applied.");
         }
         else
         {
@@ -63,14 +63,14 @@ public static class DatabaseInitializer
     {
         if (await HasOwnSchemaAsync(db, ct))
         {
-            logger.LogInformation("Таблицы приложения уже существуют — создание пропущено.");
+            logger.LogInformation("Application tables already exist — schema creation skipped.");
             return;
         }
 
         var creator = db.Database.GetService<IRelationalDatabaseCreator>();
         await creator.CreateTablesAsync(ct);
 
-        logger.LogWarning("Миграции не найдены — схема создана напрямую из модели.");
+        logger.LogWarning("No migrations found — schema created directly from the model.");
     }
 
     /// <summary>Есть ли в базе именно наша таблица заявок и пользователей, а не чужие.</summary>
@@ -100,7 +100,7 @@ public static class DatabaseInitializer
             }
             catch (Exception exception) when (attempt < attempts)
             {
-                logger.LogWarning("База ещё недоступна ({Attempt}/{Attempts}): {Message}", attempt, attempts, exception.Message);
+                logger.LogWarning("Database not reachable yet ({Attempt}/{Attempts}): {Message}", attempt, attempts, exception.Message);
             }
 
             await Task.Delay(TimeSpan.FromSeconds(2), ct);

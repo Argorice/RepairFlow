@@ -5,6 +5,7 @@ using RepairFlow.Api.Authorization;
 using RepairFlow.Api.Configuration;
 using RepairFlow.Api.Extensions;
 using RepairFlow.Api.Filters;
+using RepairFlow.Api.Localization;
 using RepairFlow.Api.Middleware;
 using RepairFlow.Api.Realtime;
 using RepairFlow.Api.Serialization;
@@ -22,6 +23,16 @@ builder.Services
     .AddAppOpenApi();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>(ServiceLifetime.Singleton);
+
+// Язык ответов — по заголовку Accept-Language, который шлёт фронтенд. Меняется только язык текстов
+// (UI-культура); форматы чисел и дат на сервере остаются инвариантными — их форматирует клиент.
+builder.Services.AddRequestLocalization(options =>
+{
+    options.SetDefaultCulture(Texts.DefaultLanguage);
+    options.AddSupportedCultures(Texts.DefaultLanguage);
+    options.AddSupportedUICultures(Texts.SupportedLanguages);
+    options.ApplyCurrentCultureToResponseHeaders = true;
+});
 
 builder.Services
     .AddControllers(options =>
@@ -59,10 +70,13 @@ catch (Exception exception)
     app.Services
         .GetRequiredService<ILoggerFactory>()
         .CreateLogger("Startup")
-        .LogCritical(exception, "Не удалось подготовить базу данных. Приложение поднимется, но работать не сможет.");
+        .LogCritical(exception, "Failed to prepare the database. The app will start but won’t be able to serve requests.");
 }
 
-// Обработчик исключений стоит первым: всё, что упадёт ниже, превратится в ProblemDetails.
+// Язык выбирается раньше всего остального: обработчик исключений ниже уже пишет ошибки на нём.
+app.UseRequestLocalization();
+
+// Обработчик исключений стоит следующим: всё, что упадёт ниже, превратится в ProblemDetails.
 app.UseAppExceptionHandling();
 
 app.MapOpenApi();

@@ -5,6 +5,7 @@ using RepairFlow.Api.Data;
 using RepairFlow.Api.Domain.Entities;
 using RepairFlow.Api.Domain.Enums;
 using RepairFlow.Api.Mapping;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Services;
 
@@ -66,7 +67,7 @@ public sealed class UserService : IUserService
 
         if (await _db.Users.AnyAsync(u => u.Email == email, ct))
         {
-            throw new ConflictException("Пользователь с такой почтой уже существует.");
+            throw new ConflictException(Texts.Pick("A user with this email already exists.", "Пользователь с такой почтой уже существует."));
         }
 
         var user = new User
@@ -88,19 +89,19 @@ public sealed class UserService : IUserService
     public async Task<UserDto> UpdateAsync(Guid id, UpdateUserRequest request, CancellationToken ct = default)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id, ct)
-                   ?? throw NotFoundException.For("Пользователь", id);
+                   ?? throw NotFoundException.For(Texts.Pick("user", "пользователь"), id);
 
         // Защита от выстрела в ногу: менеджер не может отобрать права у самого себя.
         if (user.Id == _currentUser.Id)
         {
             if (request.Role is not null && request.Role != user.Role)
             {
-                throw new ConflictException("Нельзя сменить роль самому себе.");
+                throw new ConflictException(Texts.Pick("You can’t change your own role.", "Нельзя сменить роль самому себе."));
             }
 
             if (request.IsActive == false)
             {
-                throw new ConflictException("Нельзя отключить собственную учётную запись.");
+                throw new ConflictException(Texts.Pick("You can’t disable your own account.", "Нельзя отключить собственную учётную запись."));
             }
         }
 
@@ -138,7 +139,7 @@ public sealed class UserService : IUserService
     public async Task<UserDto> UpdateProfileAsync(UpdateProfileRequest request, CancellationToken ct = default)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == _currentUser.Id, ct)
-                   ?? throw new UnauthorizedException("Пользователь не найден.");
+                   ?? throw new UnauthorizedException(Texts.Pick("User not found.", "Пользователь не найден."));
 
         user.FullName = request.FullName.Trim();
         user.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
@@ -151,13 +152,13 @@ public sealed class UserService : IUserService
     public async Task ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == _currentUser.Id, ct)
-                   ?? throw new UnauthorizedException("Пользователь не найден.");
+                   ?? throw new UnauthorizedException(Texts.Pick("User not found.", "Пользователь не найден."));
 
         if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
         {
             throw new ValidationFailedException(new Dictionary<string, string[]>
             {
-                ["currentPassword"] = new[] { "Текущий пароль указан неверно." }
+                ["currentPassword"] = new[] { Texts.Pick("The current password is incorrect.", "Текущий пароль указан неверно.") }
             });
         }
 
@@ -187,7 +188,7 @@ public sealed class UserService : IUserService
         var managers = await _db.Users.CountAsync(u => u.Role == UserRole.Manager && u.IsActive, ct);
         if (managers <= 1)
         {
-            throw new ConflictException("В системе должен остаться хотя бы один активный менеджер.");
+            throw new ConflictException(Texts.Pick("At least one active manager must remain.", "В системе должен остаться хотя бы один активный менеджер."));
         }
     }
 }

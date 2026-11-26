@@ -3,6 +3,7 @@ using RepairFlow.Api.Contracts;
 using RepairFlow.Api.Domain;
 using RepairFlow.Api.Domain.Entities;
 using RepairFlow.Api.Domain.Enums;
+using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Realtime;
 
@@ -39,7 +40,9 @@ public sealed class OrderNotifier : IOrderNotifier
         PublishAsync(
             order,
             OrderEventKind.TechnicianAssigned,
-            technicianName is null ? "Мастер снят с заявки" : $"Назначен мастер: {technicianName}",
+            technicianName is null
+                ? Texts.Pick("Technician removed from the request", "Мастер снят с заявки")
+                : Texts.Pick($"Technician assigned: {technicianName}", $"Назначен мастер: {technicianName}"),
             internalOnly: false,
             ct);
 
@@ -77,7 +80,7 @@ public sealed class OrderNotifier : IOrderNotifier
         catch (Exception exception)
         {
             // Уведомление — приятный бонус, а не часть транзакции: его падение не должно ронять запрос.
-            _logger.LogWarning(exception, "Не удалось разослать событие по заявке {Number}.", order.Number);
+            _logger.LogWarning(exception, "Failed to broadcast an event for request {Number}.", order.Number);
         }
     }
 
