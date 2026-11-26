@@ -12,13 +12,16 @@ namespace RepairFlow.Tests;
 /// </summary>
 public class MessagePackSerializationTests
 {
+    /// <summary>Токен отмены прогона: остановка тестов прерывает и сериализацию.</summary>
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     [Fact]
     public void Order_survives_a_round_trip()
     {
         var order = SampleOrder();
 
-        var bytes = MessagePackSerializer.Serialize(order, MessagePackConfig.Wire);
-        var restored = MessagePackSerializer.Deserialize<OrderListItemDto>(bytes, MessagePackConfig.Wire);
+        var bytes = MessagePackSerializer.Serialize(order, MessagePackConfig.Wire, Ct);
+        var restored = MessagePackSerializer.Deserialize<OrderListItemDto>(bytes, MessagePackConfig.Wire, Ct);
 
         Assert.Equal(order.Id, restored.Id);
         Assert.Equal(order.Number, restored.Number);
@@ -33,9 +36,9 @@ public class MessagePackSerializationTests
     [Fact]
     public void Enums_travel_as_strings_just_like_in_json()
     {
-        var bytes = MessagePackSerializer.Serialize(SampleOrder(), MessagePackConfig.Wire);
+        var bytes = MessagePackSerializer.Serialize(SampleOrder(), MessagePackConfig.Wire, Ct);
 
-        var asJson = MessagePackSerializer.ConvertToJson(bytes, MessagePackConfig.Wire);
+        var asJson = MessagePackSerializer.ConvertToJson(bytes, MessagePackConfig.Wire, Ct);
 
         Assert.Contains("InProgress", asJson);
         Assert.DoesNotContain("\"Status\":3", asJson);
@@ -46,8 +49,8 @@ public class MessagePackSerializationTests
     {
         var order = SampleOrder() with { Technician = null };
 
-        var bytes = MessagePackSerializer.Serialize(order, MessagePackConfig.Wire);
-        var restored = MessagePackSerializer.Deserialize<OrderListItemDto>(bytes, MessagePackConfig.Wire);
+        var bytes = MessagePackSerializer.Serialize(order, MessagePackConfig.Wire, Ct);
+        var restored = MessagePackSerializer.Deserialize<OrderListItemDto>(bytes, MessagePackConfig.Wire, Ct);
 
         Assert.Null(restored.Technician);
     }
@@ -57,8 +60,8 @@ public class MessagePackSerializationTests
     {
         var summary = SampleSummary();
 
-        var bytes = MessagePackSerializer.Serialize(summary, MessagePackConfig.Wire);
-        var restored = MessagePackSerializer.Deserialize<DashboardSummaryDto>(bytes, MessagePackConfig.Wire);
+        var bytes = MessagePackSerializer.Serialize(summary, MessagePackConfig.Wire, Ct);
+        var restored = MessagePackSerializer.Deserialize<DashboardSummaryDto>(bytes, MessagePackConfig.Wire, Ct);
 
         Assert.Equal(summary.Daily.Count, restored.Daily.Count);
         Assert.Equal(summary.Daily[0].Date, restored.Daily[0].Date);
@@ -68,9 +71,9 @@ public class MessagePackSerializationTests
     [Fact]
     public void Date_only_is_written_as_an_iso_string()
     {
-        var bytes = MessagePackSerializer.Serialize(SampleSummary(), MessagePackConfig.Wire);
+        var bytes = MessagePackSerializer.Serialize(SampleSummary(), MessagePackConfig.Wire, Ct);
 
-        Assert.Contains("2026-08-19", MessagePackSerializer.ConvertToJson(bytes, MessagePackConfig.Wire));
+        Assert.Contains("2026-08-19", MessagePackSerializer.ConvertToJson(bytes, MessagePackConfig.Wire, Ct));
     }
 
     [Fact]
@@ -78,8 +81,8 @@ public class MessagePackSerializationTests
     {
         var summary = SampleSummary();
 
-        var compressed = MessagePackSerializer.Serialize(summary, MessagePackConfig.Cache);
-        var restored = MessagePackSerializer.Deserialize<DashboardSummaryDto>(compressed, MessagePackConfig.Cache);
+        var compressed = MessagePackSerializer.Serialize(summary, MessagePackConfig.Cache, Ct);
+        var restored = MessagePackSerializer.Deserialize<DashboardSummaryDto>(compressed, MessagePackConfig.Cache, Ct);
 
         Assert.Equal(summary.TotalOrders, restored.TotalOrders);
         Assert.Equal(summary.RevenueInPeriod, restored.RevenueInPeriod);
@@ -99,8 +102,8 @@ public class MessagePackSerializationTests
             "Ремонт завершён",
             new DateTime(2026, 8, 19, 10, 0, 0, DateTimeKind.Utc));
 
-        var bytes = MessagePackSerializer.Serialize(payload, MessagePackConfig.Wire);
-        var restored = MessagePackSerializer.Deserialize<OrderEventDto>(bytes, MessagePackConfig.Wire);
+        var bytes = MessagePackSerializer.Serialize(payload, MessagePackConfig.Wire, Ct);
+        var restored = MessagePackSerializer.Deserialize<OrderEventDto>(bytes, MessagePackConfig.Wire, Ct);
 
         Assert.Equal(payload.OrderId, restored.OrderId);
         Assert.Equal(payload.Kind, restored.Kind);
