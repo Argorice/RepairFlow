@@ -125,7 +125,9 @@ public sealed class OrderItemService : IOrderItemService
     public Task<OrderDetailsDto> ApproveAsync(Guid orderId, CancellationToken ct = default) =>
         _orders.ChangeStatusAsync(
             orderId,
-            new ChangeStatusRequest(OrderStatus.InProgress, Texts.Pick("Estimate approved by the customer", "Смета подтверждена клиентом")),
+            // Комментарий не подставляем: переход «согласование → ремонт» от клиента сам говорит,
+            // что смету подтвердили, а фраза на языке клиента осталась бы в истории навсегда.
+            new ChangeStatusRequest(OrderStatus.InProgress, null),
             ct);
 
     public Task<OrderDetailsDto> RejectAsync(Guid orderId, RejectEstimateRequest request, CancellationToken ct = default) =>
@@ -133,9 +135,7 @@ public sealed class OrderItemService : IOrderItemService
             orderId,
             new ChangeStatusRequest(
                 OrderStatus.ClientRejected,
-                string.IsNullOrWhiteSpace(request.Reason)
-                    ? Texts.Pick("The customer declined the repair", "Клиент отказался от ремонта")
-                    : request.Reason.Trim()),
+                string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim()),
             ct);
 
     private async Task<Order> LoadEditableAsync(Guid orderId, CancellationToken ct)

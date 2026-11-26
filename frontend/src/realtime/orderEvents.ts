@@ -16,7 +16,6 @@ interface RawOrderEvent {
   Number?: string
   Kind?: string
   Status?: string
-  StatusLabel?: string
   Message?: string | null
   At?: string
 }
@@ -27,7 +26,6 @@ function normalize(raw: RawOrderEvent & Partial<OrderEventDto>): OrderEventDto {
     number: raw.number ?? raw.Number ?? '',
     kind: (raw.kind ?? raw.Kind ?? 'StatusChanged') as OrderEventDto['kind'],
     status: (raw.status ?? raw.Status ?? 'New') as OrderEventDto['status'],
-    statusLabel: raw.statusLabel ?? raw.StatusLabel ?? '',
     message: raw.message ?? raw.Message ?? null,
     at: raw.at ?? raw.At ?? new Date().toISOString(),
   }

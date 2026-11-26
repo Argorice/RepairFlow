@@ -234,7 +234,7 @@ export interface OrderEventDto {
   number: string
   kind: OrderEventKind
   status: OrderStatus
-  statusLabel: string
+  /** Только текст, написанный человеком: превью комментария или комментарий к смене статуса. */
   message: string | null
   at: string
 }

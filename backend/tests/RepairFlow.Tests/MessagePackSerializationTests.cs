@@ -1,5 +1,6 @@
 using MessagePack;
 using RepairFlow.Api.Contracts;
+using RepairFlow.Api.Domain;
 using RepairFlow.Api.Domain.Enums;
 using RepairFlow.Api.Serialization;
 using Xunit;
@@ -98,8 +99,7 @@ public class MessagePackSerializationTests
             "RF-2026-0007",
             OrderEventKind.StatusChanged,
             OrderStatus.ReadyForPickup,
-            "Готова к выдаче",
-            "Ремонт завершён",
+            "Ремонт завершён, аппарат протестирован",
             new DateTime(2026, 8, 19, 10, 0, 0, DateTimeKind.Utc));
 
         var bytes = MessagePackSerializer.Serialize(payload, MessagePackConfig.Wire, Ct);
@@ -114,7 +114,7 @@ public class MessagePackSerializationTests
     private static OrderListItemDto SampleOrder() => new(
         Guid.Parse("44444444-4444-4444-4444-444444444444"),
         "RF-2026-0007",
-        "Ноутбук",
+        DeviceTypes.Laptop,
         "Lenovo",
         "ThinkPad T14",
         OrderStatus.InProgress,

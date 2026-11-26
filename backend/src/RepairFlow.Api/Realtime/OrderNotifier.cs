@@ -1,18 +1,15 @@
 using Microsoft.AspNetCore.SignalR;
 using RepairFlow.Api.Contracts;
-using RepairFlow.Api.Domain;
 using RepairFlow.Api.Domain.Entities;
-using RepairFlow.Api.Domain.Enums;
-using RepairFlow.Api.Localization;
 
 namespace RepairFlow.Api.Realtime;
 
 /// <summary>Рассылка событий по заявке. Сервисы зависят от интерфейса, а не от SignalR напрямую.</summary>
 public interface IOrderNotifier
 {
-    Task StatusChangedAsync(Order order, OrderStatus from, string? comment, CancellationToken ct = default);
+    Task StatusChangedAsync(Order order, string? comment, CancellationToken ct = default);
 
-    Task TechnicianAssignedAsync(Order order, string? technicianName, CancellationToken ct = default);
+    Task TechnicianAssignedAsync(Order order, CancellationToken ct = default);
 
     Task CommentAddedAsync(Order order, Comment comment, CancellationToken ct = default);
 }
@@ -28,23 +25,16 @@ public sealed class OrderNotifier : IOrderNotifier
         _logger = logger;
     }
 
-    public Task StatusChangedAsync(Order order, OrderStatus from, string? comment, CancellationToken ct = default)
-    {
-        var message = $"{OrderStatusMachine.Describe(from)} → {OrderStatusMachine.Describe(order.Status)}"
-                      + (string.IsNullOrWhiteSpace(comment) ? string.Empty : $": {comment}");
-
-        return PublishAsync(order, OrderEventKind.StatusChanged, message, internalOnly: false, ct);
-    }
-
-    public Task TechnicianAssignedAsync(Order order, string? technicianName, CancellationToken ct = default) =>
+    public Task StatusChangedAsync(Order order, string? comment, CancellationToken ct = default) =>
         PublishAsync(
             order,
-            OrderEventKind.TechnicianAssigned,
-            technicianName is null
-                ? Texts.Pick("Technician removed from the request", "Мастер снят с заявки")
-                : Texts.Pick($"Technician assigned: {technicianName}", $"Назначен мастер: {technicianName}"),
+            OrderEventKind.StatusChanged,
+            string.IsNullOrWhiteSpace(comment) ? null : Preview(comment),
             internalOnly: false,
             ct);
+
+    public Task TechnicianAssignedAsync(Order order, CancellationToken ct = default) =>
+        PublishAsync(order, OrderEventKind.TechnicianAssigned, message: null, internalOnly: false, ct);
 
     public Task CommentAddedAsync(Order order, Comment comment, CancellationToken ct = default) =>
         PublishAsync(
@@ -62,14 +52,7 @@ public sealed class OrderNotifier : IOrderNotifier
         bool internalOnly,
         CancellationToken ct)
     {
-        var payload = new OrderEventDto(
-            order.Id,
-            order.Number,
-            kind,
-            order.Status,
-            OrderStatusMachine.Describe(order.Status),
-            message,
-            DateTime.UtcNow);
+        var payload = new OrderEventDto(order.Id, order.Number, kind, order.Status, message, DateTime.UtcNow);
 
         var group = internalOnly ? OrdersHub.StaffGroup(order.Id) : OrdersHub.OrderGroup(order.Id);
 
