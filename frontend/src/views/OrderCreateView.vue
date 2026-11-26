@@ -9,7 +9,8 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppChip from '@/components/ui/AppChip.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
-import { t, type MessageKey } from '@/i18n'
+import { t } from '@/i18n'
+import { DEVICE_TYPES, type DeviceType } from '@/lib/devices'
 import { formatFileSize } from '@/lib/format'
 import { useToastStore } from '@/stores/toasts'
 
@@ -17,22 +18,23 @@ const router = useRouter()
 const toasts = useToastStore()
 
 const form = ref({
-  deviceType: '',
   brand: '',
   model: '',
   serialNumber: '',
   problemDescription: '',
 })
 
-/** Самые частые типы устройств — одним касанием. Поле остаётся свободным: принесут что угодно. */
-const DEVICE_TYPES: MessageKey[] = [
-  'create.devices.laptop',
-  'create.devices.phone',
-  'create.devices.tablet',
-  'create.devices.tv',
-  'create.devices.console',
-  'create.devices.printer',
-]
+/**
+ * Тип устройства — выбор из списка, и в заявку уходит код («laptop»), а не слово на языке
+ * клиента: иначе английский мастер увидел бы «Ноутбук», а поиск по «laptop» не нашёл бы его.
+ * Для всего остального есть «Другое» со свободным текстом.
+ */
+const deviceChoice = ref<DeviceType | 'other' | ''>('')
+const otherDevice = ref('')
+
+const deviceType = computed(() =>
+  deviceChoice.value === 'other' ? otherDevice.value.trim() : deviceChoice.value,
+)
 
 interface PickedFile {
   file: File
@@ -57,8 +59,10 @@ const submitted = ref(false)
 function validate(): boolean {
   const found: Record<string, string> = {}
 
-  if (!form.value.deviceType.trim()) {
+  if (!deviceChoice.value) {
     found.deviceType = t('create.errors.deviceType')
+  } else if (deviceChoice.value === 'other' && !otherDevice.value.trim()) {
+    found.deviceType = t('create.errors.deviceTypeOther')
   }
 
   if (!form.value.brand.trim()) {
@@ -82,13 +86,13 @@ function validate(): boolean {
 }
 
 /** Ошибка поля: сначала своя, потом пришедшая с сервера. */
-function errorFor(field: keyof typeof form.value): string | undefined {
+function errorFor(field: keyof typeof form.value | 'deviceType'): string | undefined {
   return localErrors.value[field] ?? error.value?.fieldError(field)
 }
 
 // После первой неудачной отправки подсказки обновляются на лету, а не ждут следующего клика.
 watch(
-  form,
+  [form, deviceChoice, otherDevice],
   () => {
     if (submitted.value) {
       validate()
@@ -134,9 +138,9 @@ async function submit(): Promise<void> {
 
     // Ведём прямо к первому полю с ошибкой — на телефоне оно обычно за краем экрана.
     await nextTick()
-    const invalid = document.querySelector<HTMLElement>('[aria-invalid="true"]')
-    invalid?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    invalid?.focus({ preventScroll: true })
+    const block = document.querySelector<HTMLElement>('.field-error')?.parentElement
+    block?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    block?.querySelector<HTMLElement>('input, textarea, button')?.focus({ preventScroll: true })
     return
   }
 
@@ -145,7 +149,7 @@ async function submit(): Promise<void> {
 
   try {
     const order = await ordersApi.create({
-      deviceType: form.value.deviceType.trim(),
+      deviceType: deviceType.value,
       brand: form.value.brand.trim(),
       model: form.value.model.trim(),
       serialNumber: form.value.serialNumber.trim() || null,
@@ -188,24 +192,33 @@ onBeforeUnmount(() => {
       <section class="card space-y-4 p-4 sm:p-6">
         <h2 class="section-title">{{ t('create.deviceSection') }}</h2>
 
-        <div>
-          <AppInput
-            v-model="form.deviceType"
-            :label="t('create.deviceType')"
-            :placeholder="t('create.deviceTypePlaceholder')"
-            required
-            :error="errorFor('deviceType')"
-          />
-          <div class="-mx-4 mt-2.5 flex gap-2 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
+        <div role="group" :aria-label="t('create.deviceType')">
+          <p class="field-label">
+            {{ t('create.deviceType') }} <span class="text-danger-ink" aria-hidden="true">*</span>
+          </p>
+          <div class="flex flex-wrap gap-2">
             <AppChip
-              v-for="key in DEVICE_TYPES"
-              :key="key"
-              :active="form.deviceType === t(key)"
-              @click="form.deviceType = t(key)"
+              v-for="code in DEVICE_TYPES"
+              :key="code"
+              :active="deviceChoice === code"
+              @click="deviceChoice = code"
             >
-              {{ t(key) }}
+              {{ t(`devices.${code}`) }}
+            </AppChip>
+            <AppChip :active="deviceChoice === 'other'" @click="deviceChoice = 'other'">
+              {{ t('devices.unlisted') }}
             </AppChip>
           </div>
+
+          <AppInput
+            v-if="deviceChoice === 'other'"
+            v-model="otherDevice"
+            class="mt-3 animate-fade-in"
+            :aria-label="t('create.deviceTypeOther')"
+            :placeholder="t('create.deviceTypeOtherPlaceholder')"
+            :error="errorFor('deviceType')"
+          />
+          <p v-else-if="errorFor('deviceType')" class="field-error">{{ errorFor('deviceType') }}</p>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2">

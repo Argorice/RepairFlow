@@ -113,6 +113,18 @@ export const en = {
     Manager: 'Manager',
   },
 
+  /** Коды типов устройств — так они хранятся в базе. Свободный текст показывается как есть. */
+  devices: {
+    laptop: 'Laptop',
+    phone: 'Phone',
+    tablet: 'Tablet',
+    tv: 'TV',
+    monitor: 'Monitor',
+    console: 'Game console',
+    printer: 'Printer',
+    unlisted: 'Other',
+  },
+
   itemType: {
     Labor: 'Labour',
     Part: 'Part',
@@ -205,15 +217,8 @@ export const en = {
     subtitle: 'Describe the problem in your own words — the technician will ask for details in the conversation.',
     deviceSection: 'Device',
     deviceType: 'Device type',
-    deviceTypePlaceholder: 'Laptop, phone, TV…',
-    devices: {
-      laptop: 'Laptop',
-      phone: 'Phone',
-      tablet: 'Tablet',
-      tv: 'TV',
-      console: 'Game console',
-      printer: 'Printer',
-    },
+    deviceTypeOther: 'What kind of device?',
+    deviceTypeOtherPlaceholder: 'Coffee machine, drone, e-bike…',
     brand: 'Brand',
     model: 'Model',
     serial: 'Serial number',
@@ -230,7 +235,8 @@ export const en = {
     created: 'Request {number} submitted',
     failed: 'Couldn’t submit the request.',
     errors: {
-      deviceType: 'Enter the device type.',
+      deviceType: 'Pick the device type.',
+      deviceTypeOther: 'Describe the device in a word or two.',
       brand: 'Enter the brand.',
       model: 'Enter the model.',
       problemEmpty: 'Describe what happened.',

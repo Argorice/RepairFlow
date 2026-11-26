@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 using RepairFlow.Api.Configuration;
 using RepairFlow.Api.Data;
+using RepairFlow.Api.Domain;
 
 namespace RepairFlow.Api.Extensions;
 
@@ -33,6 +34,8 @@ public static class DatabaseInitializer
         {
             await CreateSchemaWithoutMigrationsAsync(db, logger, ct);
         }
+
+        await NormalizeDeviceTypesAsync(db, logger, ct);
 
         if (demo.SeedOnStartup)
         {
@@ -71,6 +74,41 @@ public static class DatabaseInitializer
         await creator.CreateTablesAsync(ct);
 
         logger.LogWarning("No migrations found — schema created directly from the model.");
+    }
+
+    /// <summary>
+    /// Миграция данных: тип устройства раньше хранился словом на языке автора заявки
+    /// («Ноутбук», «Laptop»), теперь — кодом («laptop»). Знакомые слова сводятся к кодам,
+    /// свободный текст остаётся как есть.
+    ///
+    /// Схема без EF-миграций, поэтому шаг живёт здесь и выполняется на каждом старте. Он
+    /// идемпотентный: уже приведённые значения не трогает, повторный запуск ничего не меняет.
+    /// Сравнение идёт в .NET, а не в SQL: lower() в Postgres зависит от локали базы и на «C»
+    /// не опускает кириллицу, а различных значений типа в базе — единицы.
+    /// </summary>
+    private static async Task NormalizeDeviceTypesAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var values = await db.Orders.Select(o => o.DeviceType).Distinct().ToListAsync(ct);
+        var changed = 0;
+
+        foreach (var value in values)
+        {
+            var code = DeviceTypes.Normalize(value);
+
+            if (code == value)
+            {
+                continue;
+            }
+
+            changed += await db.Orders
+                .Where(o => o.DeviceType == value)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(o => o.DeviceType, code), ct);
+        }
+
+        if (changed > 0)
+        {
+            logger.LogInformation("Device types normalized to codes in {Count} requests.", changed);
+        }
     }
 
     /// <summary>Есть ли в базе именно наша таблица заявок и пользователей, а не чужие.</summary>

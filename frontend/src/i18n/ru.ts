@@ -112,6 +112,17 @@ export const ru: Messages = {
     Manager: 'Менеджер',
   },
 
+  devices: {
+    laptop: 'Ноутбук',
+    phone: 'Смартфон',
+    tablet: 'Планшет',
+    tv: 'Телевизор',
+    monitor: 'Монитор',
+    console: 'Игровая консоль',
+    printer: 'Принтер',
+    unlisted: 'Другое',
+  },
+
   itemType: {
     Labor: 'Работа',
     Part: 'Запчасть',
@@ -206,15 +217,8 @@ export const ru: Messages = {
     subtitle: 'Опишите поломку своими словами — мастер уточнит детали в переписке.',
     deviceSection: 'Устройство',
     deviceType: 'Тип устройства',
-    deviceTypePlaceholder: 'Ноутбук, смартфон, телевизор…',
-    devices: {
-      laptop: 'Ноутбук',
-      phone: 'Смартфон',
-      tablet: 'Планшет',
-      tv: 'Телевизор',
-      console: 'Игровая консоль',
-      printer: 'Принтер',
-    },
+    deviceTypeOther: 'Что за устройство?',
+    deviceTypeOtherPlaceholder: 'Кофемашина, дрон, электросамокат…',
     brand: 'Производитель',
     model: 'Модель',
     serial: 'Серийный номер',
@@ -231,7 +235,8 @@ export const ru: Messages = {
     created: 'Заявка {number} создана',
     failed: 'Не удалось создать заявку.',
     errors: {
-      deviceType: 'Укажите тип устройства.',
+      deviceType: 'Выберите тип устройства.',
+      deviceTypeOther: 'Назовите устройство в паре слов.',
       brand: 'Укажите производителя.',
       model: 'Укажите модель.',
       problemEmpty: 'Опишите, что случилось.',

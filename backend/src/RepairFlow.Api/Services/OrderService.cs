@@ -99,7 +99,13 @@ public sealed class OrderService : IOrderService
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var pattern = "%" + EscapeLike(query.Search.Trim()) + "%";
+
+            // Тип устройства лежит кодом, поэтому слово из поиска сначала переводим в коды:
+            // «ноут» и «laptop» оба найдут заявки с типом laptop.
+            var deviceCodes = DeviceTypes.MatchingSearch(query.Search);
+
             filtered = filtered.Where(o =>
+                deviceCodes.Contains(o.DeviceType) ||
                 EF.Functions.ILike(o.Number, pattern) ||
                 EF.Functions.ILike(o.Brand, pattern) ||
                 EF.Functions.ILike(o.Model, pattern) ||
@@ -146,7 +152,7 @@ public sealed class OrderService : IOrderService
         {
             Number = await NextNumberAsync(now.Year, ct),
             ClientId = _currentUser.Id,
-            DeviceType = request.DeviceType.Trim(),
+            DeviceType = DeviceTypes.Normalize(request.DeviceType),
             Brand = request.Brand.Trim(),
             Model = request.Model.Trim(),
             SerialNumber = string.IsNullOrWhiteSpace(request.SerialNumber) ? null : request.SerialNumber.Trim(),
@@ -193,7 +199,7 @@ public sealed class OrderService : IOrderService
 
         if (request.DeviceType is not null)
         {
-            order.DeviceType = request.DeviceType.Trim();
+            order.DeviceType = DeviceTypes.Normalize(request.DeviceType);
         }
 
         if (request.Brand is not null)
@@ -298,7 +304,7 @@ public sealed class OrderService : IOrderService
             _currentUser.Id);
 
         // Клиент и мастер видят смену статуса сразу, без перезагрузки карточки.
-        await _notifier.StatusChangedAsync(order, from, request.Comment, ct);
+        await _notifier.StatusChangedAsync(order, request.Comment, ct);
 
         return await BuildDetailsAsync(order, ct);
     }
@@ -348,7 +354,7 @@ public sealed class OrderService : IOrderService
 
         await _db.SaveChangesAsync(ct);
 
-        await _notifier.TechnicianAssignedAsync(order, technician?.FullName, ct);
+        await _notifier.TechnicianAssignedAsync(order, ct);
 
         return await BuildDetailsAsync(order, ct);
     }

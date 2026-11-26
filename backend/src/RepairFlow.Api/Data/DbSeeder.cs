@@ -98,7 +98,8 @@ public static class DbSeeder
                 DeviceType = device.Type,
                 Brand = device.Brand,
                 Model = device.Model,
-                SerialNumber = $"SN{random.Next(100000, 999999)}",
+                // Серийник без префикса «SN»: интерфейс сам подписывает поле как S/N.
+                SerialNumber = $"C{random.Next(10, 99)}X{random.Next(100000, 999999)}",
                 ProblemDescription = device.Problem,
                 Status = OrderStatus.New,
                 Priority = (OrderPriority)random.Next(0, 3),
@@ -332,17 +333,17 @@ public static class DbSeeder
 
     private static readonly DeviceTemplate[] Devices =
     {
-        new("Laptop", "Lenovo", "ThinkPad T14", "Won’t turn on after a coffee spill; there are signs of corrosion on the board.", "Board cleaning and recovery", "Keyboard ribbon cable"),
-        new("Phone", "Apple", "iPhone 13", "Cracked screen; the touchscreen doesn’t respond in the lower third.", "Display module replacement", "Display module"),
-        new("Laptop", "ASUS", "ZenBook 14", "The fan is very loud; it overheats and shuts down under load.", "Cooling system service, new thermal paste", "Cooling fan"),
-        new("TV", "Samsung", "UE50TU7100", "Picture is fine, but there’s no sound from the speakers or over HDMI.", "Audio path repair", "Amplifier chip"),
-        new("Phone", "Samsung", "Galaxy S21", "Battery drains completely in half a day.", "Battery replacement", "Battery"),
-        new("Laptop", "HP", "Pavilion 15", "Won’t charge; the power LED stays off.", "Power circuit repair", "Power jack"),
-        new("Tablet", "Apple", "iPad Air 4", "Part of the touchscreen stopped working after a drop.", "Glass replacement", "Touch panel"),
-        new("Monitor", "LG", "27UP650", "Stripes across the screen when connected over DisplayPort.", "Panel and ribbon diagnostics", null),
-        new("Printer", "Kyocera", "Ecosys P2040", "Jams paper on every other page.", "Feed assembly replacement", "Paper feed roller"),
-        new("Phone", "Xiaomi", "Redmi Note 12", "Can’t hear the other person during calls.", "Earpiece speaker replacement", "Earpiece speaker"),
-        new("Laptop", "Acer", "Aspire 5", "Several keys on the keyboard don’t work.", "Keyboard replacement", "Keyboard"),
-        new("Game console", "Sony", "PlayStation 5", "Overheats and reboots during games.", "Cooling system service", "Thermal pads")
+        new(DeviceTypes.Laptop, "Lenovo", "ThinkPad T14", "Won’t turn on after a coffee spill; there are signs of corrosion on the board.", "Board cleaning and recovery", "Keyboard ribbon cable"),
+        new(DeviceTypes.Phone, "Apple", "iPhone 13", "Cracked screen; the touchscreen doesn’t respond in the lower third.", "Display module replacement", "Display module"),
+        new(DeviceTypes.Laptop, "ASUS", "ZenBook 14", "The fan is very loud; it overheats and shuts down under load.", "Cooling system service, new thermal paste", "Cooling fan"),
+        new(DeviceTypes.Tv, "Samsung", "UE50TU7100", "Picture is fine, but there’s no sound from the speakers or over HDMI.", "Audio path repair", "Amplifier chip"),
+        new(DeviceTypes.Phone, "Samsung", "Galaxy S21", "Battery drains completely in half a day.", "Battery replacement", "Battery"),
+        new(DeviceTypes.Laptop, "HP", "Pavilion 15", "Won’t charge; the power LED stays off.", "Power circuit repair", "Power jack"),
+        new(DeviceTypes.Tablet, "Apple", "iPad Air 4", "Part of the touchscreen stopped working after a drop.", "Glass replacement", "Touch panel"),
+        new(DeviceTypes.Monitor, "LG", "27UP650", "Stripes across the screen when connected over DisplayPort.", "Panel and ribbon diagnostics", null),
+        new(DeviceTypes.Printer, "Kyocera", "Ecosys P2040", "Jams paper on every other page.", "Feed assembly replacement", "Paper feed roller"),
+        new(DeviceTypes.Phone, "Xiaomi", "Redmi Note 12", "Can’t hear the other person during calls.", "Earpiece speaker replacement", "Earpiece speaker"),
+        new(DeviceTypes.Laptop, "Acer", "Aspire 5", "Several keys on the keyboard don’t work.", "Keyboard replacement", "Keyboard"),
+        new(DeviceTypes.Console, "Sony", "PlayStation 5", "Overheats and reboots during games.", "Cooling system service", "Thermal pads")
     };
 }

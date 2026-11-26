@@ -27,6 +27,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonBlock from '@/components/ui/SkeletonBlock.vue'
 import { t } from '@/i18n'
 import { formatMoney, formatRelative } from '@/lib/format'
+import { deviceTypeLabel } from '@/lib/devices'
 import { ALL_STATUSES, priorityLabel, statusLabel } from '@/lib/status'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toasts'
@@ -303,7 +304,7 @@ onActivated(() => {
                       <span class="truncate font-medium text-ink">{{ order.brand }} {{ order.model }}</span>
                       <PriorityMark :priority="order.priority" />
                     </span>
-                    <span class="block text-xs text-ink-3">{{ order.number }} · {{ order.deviceType }}</span>
+                    <span class="block text-xs text-ink-3">{{ order.number }} · {{ deviceTypeLabel(order.deviceType) }}</span>
                   </span>
                 </RouterLink>
               </td>

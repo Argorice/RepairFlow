@@ -1,12 +1,23 @@
 <script setup lang="ts">
 import { Gamepad2, Laptop, Monitor, Printer, Smartphone, Tablet, Tv, Wrench } from '@lucide/vue'
 import { computed, type Component } from 'vue'
+import { isKnownDeviceType, type DeviceType } from '@/lib/devices'
 
 /**
- * Тип устройства — свободный текст на языке клиента, поэтому иконка подбирается
- * по ключевым словам на обоих языках. Не нашлось — нейтральный гаечный ключ.
+ * Иконка по коду типа устройства. Для свободного текста («другое») — догадка по ключевым словам
+ * на обоих языках; не нашлось — нейтральный гаечный ключ.
  */
 const props = withDefaults(defineProps<{ type: string; size?: 'sm' | 'md' }>(), { size: 'md' })
+
+const BY_CODE: Record<DeviceType, Component> = {
+  laptop: Laptop,
+  phone: Smartphone,
+  tablet: Tablet,
+  tv: Tv,
+  monitor: Monitor,
+  console: Gamepad2,
+  printer: Printer,
+}
 
 const RULES: [RegExp, Component][] = [
   [/laptop|notebook|macbook|ноутбук/i, Laptop],
@@ -18,7 +29,11 @@ const RULES: [RegExp, Component][] = [
   [/console|playstation|xbox|switch|консоль|приставка/i, Gamepad2],
 ]
 
-const icon = computed(() => RULES.find(([pattern]) => pattern.test(props.type))?.[1] ?? Wrench)
+const icon = computed(() =>
+  isKnownDeviceType(props.type)
+    ? BY_CODE[props.type]
+    : (RULES.find(([pattern]) => pattern.test(props.type))?.[1] ?? Wrench),
+)
 </script>
 
 <template>

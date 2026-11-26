@@ -30,6 +30,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonBlock from '@/components/ui/SkeletonBlock.vue'
 import { t } from '@/i18n'
 import { appBar } from '@/lib/appBar'
+import { deviceTypeLabel } from '@/lib/devices'
 import { formatDateTime, formatMoney } from '@/lib/format'
 import { MAIN_PATH, isDestructiveTransition, statusLabel, transitionLabel } from '@/lib/status'
 import { useOrderEvents } from '@/realtime/orderEvents'
@@ -268,7 +269,7 @@ onBeforeUnmount(() => {
                 <PriorityMark :priority="order.priority" with-label />
               </div>
               <p class="mt-1 text-sm text-ink-3">
-                {{ order.number }} · {{ order.deviceType }}
+                {{ order.number }} · {{ deviceTypeLabel(order.deviceType) }}
                 <template v-if="order.serialNumber"> · S/N {{ order.serialNumber }}</template>
               </p>
 
